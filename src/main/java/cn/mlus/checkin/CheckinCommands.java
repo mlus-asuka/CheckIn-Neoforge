@@ -264,7 +264,24 @@ public class CheckinCommands {
                     .append(Component.literal(" (点击复制)").withStyle(ChatFormatting.GRAY));
 
             source.sendSuccess(() -> msg, false);
-            source.sendSuccess(() -> Component.translatable("checkin.web.code_hint", Config.webPort), false);
+
+            // 构建可点击的网页链接
+            String webUrl = "http://" + Config.webHost + ":" + Config.webPort;
+            Component linkComponent = Component.literal(webUrl)
+                    .withStyle(Style.EMPTY
+                            .withColor(ChatFormatting.BLUE)
+                            .withUnderlined(true)
+                            .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, webUrl))
+                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                    Component.literal("点击打开网页")))
+                    );
+
+            Component hintMsg = Component.empty()
+                    .append(Component.literal("打开浏览器访问 ").withStyle(ChatFormatting.GRAY))
+                    .append(linkComponent)
+                    .append(Component.literal(" 输入登录码登录（有效期 5 分钟）").withStyle(ChatFormatting.GRAY));
+
+            source.sendSuccess(() -> hintMsg, false);
             return 1;
         } catch (Exception e) {
             source.sendFailure(Component.translatable("checkin.error"));

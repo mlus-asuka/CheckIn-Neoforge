@@ -16,7 +16,7 @@ import net.neoforged.neoforge.common.ModConfigSpec;
  *   <li>maxConsecutiveBonus — 连续签到奖励的上限</li>
  * </ul>
  */
-@EventBusSubscriber(modid = Checkin.MODID, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = Checkin.MODID)
 public class Config {
 
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
@@ -49,6 +49,10 @@ public class Config {
             .comment("Port for the built-in web server")
             .defineInRange("webPort", 25580, 1024, 65535);
 
+    private static final ModConfigSpec.ConfigValue<String> WEB_HOST = BUILDER
+            .comment("Web server host address (use IP or domain name)")
+            .define("webHost", "localhost");
+
     static final ModConfigSpec SPEC = BUILDER.build();
 
     public static int minPoints;
@@ -58,6 +62,7 @@ public class Config {
     public static int maxConsecutiveBonus;
     public static boolean webEnabled;
     public static int webPort;
+    public static String webHost;
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
@@ -68,5 +73,6 @@ public class Config {
         maxConsecutiveBonus = MAX_CONSECUTIVE_BONUS.get();
         webEnabled = WEB_ENABLED.get();
         webPort = WEB_PORT.get();
+        webHost = WEB_HOST.get();
     }
 }

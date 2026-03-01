@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>签到积分商店</title>
+    <style>
+        /* ===== CSS Reset & Variables ===== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg-primary: #0f0f1a;
+            --bg-secondary: #1a1a2e;
+            --bg-card: #16213e;
+            --bg-card-hover: #1a2744;
+            --accent: #e94560;
+            --accent-light: #ff6b81;
+            --accent-dark: #c0392b;
+            --gold: #f39c12;
+            --gold-light: #f1c40f;
+            --green: #2ecc71;
+            --green-dark: #27ae60;
+            --blue: #3498db;
+            --blue-dark: #2980b9;
+            --text-primary: #eee;
+            --text-secondary: #aaa;
+            --text-muted: #666;
+            --border: #2a2a4a;
+            --shadow: 0 8px 32px rgba(0,0,0,0.4);
+            --radius: 12px;
+            --radius-sm: 8px;
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ===== Animated Background ===== */
+        .bg-particles {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; overflow: hidden;
+        }
+        .bg-particles::before {
+            content: '';
+            position: absolute; top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(ellipse at 20% 50%, rgba(233,69,96,0.08) 0%, transparent 50%),
+                        radial-gradient(ellipse at 80% 20%, rgba(52,152,219,0.08) 0%, transparent 50%),
+                        radial-gradient(ellipse at 50% 80%, rgba(243,156,18,0.06) 0%, transparent 50%);
+            animation: bgShift 20s ease-in-out infinite;
+        }
+        @keyframes bgShift {
+            0%, 100% { transform: translate(0, 0); }
+            33% { transform: translate(-30px, -20px); }
+            66% { transform: translate(20px, 10px); }
+        }
+
+        /* ===== Header / Navbar ===== */
+        .navbar {
+            background: rgba(15,15,26,0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+            height: 64px;
+            display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .nav-brand {
+            font-size: 1.3rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--gold));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .nav-brand .icon { font-size: 1.6rem; -webkit-text-fill-color: initial; }
+        .nav-links { display: flex; gap: 4px; }
+        .nav-links button {
+            background: none; border: none; color: var(--text-secondary);
+            padding: 8px 16px; border-radius: var(--radius-sm);
+            cursor: pointer; font-size: 0.9rem; font-weight: 500;
+            transition: var(--transition);
+        }
+        .nav-links button:hover, .nav-links button.active {
+            color: var(--text-primary); background: rgba(255,255,255,0.08);
+        }
+        .nav-links button.active { color: var(--accent); }
+        .nav-user {
+            display: flex; align-items: center; gap: 12px;
+        }
+        .nav-user .points-badge {
+            background: linear-gradient(135deg, var(--gold), var(--gold-light));
+            color: #000; padding: 4px 12px; border-radius: 20px;
+            font-weight: 700; font-size: 0.85rem;
+        }
+        .nav-user .user-name {
+            font-weight: 600; color: var(--text-primary);
+        }
+        .nav-user .btn-logout {
+            background: rgba(255,255,255,0.08); border: 1px solid var(--border);
+            color: var(--text-secondary); padding: 6px 12px; border-radius: var(--radius-sm);
+            cursor: pointer; font-size: 0.8rem; transition: var(--transition);
+        }
+        .nav-user .btn-logout:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+        /* ===== Main Container ===== */
+        .container {
+            max-width: 1200px; margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        /* ===== Login Page ===== */
+        .login-container {
+            min-height: calc(100vh - 64px);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .login-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 3rem;
+            width: 100%; max-width: 420px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            animation: fadeInUp 0.5s ease;
+        }
+        .login-card h1 {
+            font-size: 2rem; margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--accent), var(--gold));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .login-card p { color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.95rem; }
+        .login-card .hint {
+            background: rgba(52,152,219,0.1); border: 1px solid rgba(52,152,219,0.2);
+            padding: 12px 16px; border-radius: var(--radius-sm); margin-bottom: 1.5rem;
+            font-size: 0.85rem; color: var(--blue); text-align: left; line-height: 1.6;
+        }
+        .login-card .hint code {
+            background: rgba(255,255,255,0.1); padding: 2px 6px;
+            border-radius: 4px; font-family: 'Consolas', monospace;
+            color: var(--gold);
+        }
+        .code-input {
+            display: flex; gap: 8px; justify-content: center; margin-bottom: 1.5rem;
+        }
+        .code-input input {
+            width: 48px; height: 56px;
+            background: var(--bg-card); border: 2px solid var(--border);
+            border-radius: var(--radius-sm); color: var(--text-primary);
+            font-size: 1.5rem; font-weight: 700; text-align: center;
+            text-transform: uppercase; outline: none;
+            transition: var(--transition);
+        }
+        .code-input input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(233,69,96,0.2); }
+
+        /* ===== Buttons ===== */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            padding: 12px 24px; border: none; border-radius: var(--radius-sm);
+            font-size: 0.95rem; font-weight: 600; cursor: pointer;
+            transition: var(--transition); text-decoration: none;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: #fff; width: 100%;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(233,69,96,0.4); }
+        .btn-primary:active { transform: translateY(0); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-buy {
+            background: linear-gradient(135deg, var(--green), var(--green-dark));
+            color: #fff; padding: 8px 18px; font-size: 0.85rem;
+        }
+        .btn-buy:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(46,204,113,0.4); }
+        .btn-buy:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        /* ===== User Dashboard ===== */
+        .user-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem; margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.5rem;
+            position: relative; overflow: hidden;
+        }
+        .stat-card::before {
+            content: ''; position: absolute; top: 0; left: 0;
+            width: 4px; height: 100%;
+        }
+        .stat-card:nth-child(1)::before { background: var(--gold); }
+        .stat-card:nth-child(2)::before { background: var(--green); }
+        .stat-card:nth-child(3)::before { background: var(--blue); }
+        .stat-card:nth-child(4)::before { background: var(--accent); }
+        .stat-card .stat-label { font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+        .stat-card .stat-value { font-size: 1.8rem; font-weight: 700; margin-top: 4px; }
+        .stat-card:nth-child(1) .stat-value { color: var(--gold); }
+        .stat-card:nth-child(2) .stat-value { color: var(--green); }
+        .stat-card:nth-child(3) .stat-value { color: var(--blue); }
+        .stat-card:nth-child(4) .stat-value { color: var(--accent); }
+
+        /* ===== Section Title ===== */
+        .section-title {
+            font-size: 1.5rem; font-weight: 700; margin-bottom: 1.25rem;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .section-title .icon { font-size: 1.3rem; }
+
+        /* ===== Category Filter ===== */
+        .category-filter {
+            display: flex; gap: 8px; margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .category-btn {
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            color: var(--text-secondary); padding: 6px 16px;
+            border-radius: 20px; cursor: pointer; font-size: 0.85rem;
+            transition: var(--transition);
+        }
+        .category-btn:hover, .category-btn.active {
+            background: var(--accent); color: #fff; border-color: var(--accent);
+        }
+
+        /* ===== Shop Grid ===== */
+        .shop-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1rem;
+        }
+        .shop-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem;
+            transition: var(--transition);
+            display: flex; flex-direction: column;
+            position: relative; overflow: hidden;
+        }
+        .shop-item:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(233,69,96,0.15);
+        }
+        .shop-item .item-icon {
+            width: 56px; height: 56px;
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.8rem; margin-bottom: 1rem;
+            border: 1px solid var(--border);
+        }
+        .shop-item .item-icon img {
+            width: 40px; height: 40px;
+            image-rendering: pixelated;
+            object-fit: contain;
+        }
+        .shop-item .item-name {
+            font-size: 1.1rem; font-weight: 700; margin-bottom: 4px;
+        }
+        .shop-item .item-desc {
+            font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.6rem;
+            line-height: 1.4;
+        }
+        .shop-item .item-meta {
+            font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;
+        }
+        .shop-item .item-footer {
+            margin-top: auto;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .shop-item .item-price {
+            font-size: 1.1rem; font-weight: 700; color: var(--gold);
+            display: flex; align-items: center; gap: 4px;
+        }
+        .shop-item .daily-limit-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.75rem; font-weight: 600;
+            background: rgba(233,69,96,0.15); color: var(--accent);
+        }
+        .shop-item .daily-limit-badge.available {
+            background: rgba(46,204,113,0.15); color: var(--green);
+        }
+
+        /* ===== Leaderboard ===== */
+        .leaderboard {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .leaderboard-row {
+            display: grid; grid-template-columns: 60px 1fr auto;
+            align-items: center; padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            transition: var(--transition);
+        }
+        .leaderboard-row:hover { background: rgba(255,255,255,0.03); }
+        .leaderboard-row:last-child { border-bottom: none; }
+        .leaderboard-row .rank {
+            font-size: 1.1rem; font-weight: 700;
+            width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%;
+        }
+        .leaderboard-row:nth-child(1) .rank { background: linear-gradient(135deg, #f39c12, #e67e22); color: #fff; }
+        .leaderboard-row:nth-child(2) .rank { background: linear-gradient(135deg, #95a5a6, #7f8c8d); color: #fff; }
+        .leaderboard-row:nth-child(3) .rank { background: linear-gradient(135deg, #e67e22, #d35400); color: #fff; }
+        .leaderboard-row .player-name { font-weight: 600; }
+        .leaderboard-row .player-points { font-weight: 700; color: var(--gold); }
+
+        /* ===== Toast Notifications ===== */
+        .toast-container {
+            position: fixed; top: 80px; right: 20px; z-index: 1000;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .toast {
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 14px 20px;
+            min-width: 300px; max-width: 420px;
+            box-shadow: var(--shadow);
+            animation: slideIn 0.3s ease;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .toast.success { border-left: 4px solid var(--green); }
+        .toast.error { border-left: 4px solid var(--accent); }
+        .toast.info { border-left: 4px solid var(--blue); }
+        .toast .toast-icon { font-size: 1.3rem; }
+        .toast .toast-msg { font-size: 0.9rem; line-height: 1.4; }
+
+        /* ===== Animations ===== */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(100px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .fade-in { animation: fadeInUp 0.4s ease both; }
+        .fade-in-delay-1 { animation-delay: 0.1s; }
+        .fade-in-delay-2 { animation-delay: 0.2s; }
+        .fade-in-delay-3 { animation-delay: 0.3s; }
+
+        /* ===== Page Sections ===== */
+        .page-section { display: none; }
+        .page-section.active { display: block; }
+
+        /* ===== Loading Spinner ===== */
+        .spinner {
+            width: 32px; height: 32px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 3rem auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== Modal ===== */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+            z-index: 200; display: flex; align-items: center; justify-content: center;
+            opacity: 0; visibility: hidden; transition: var(--transition);
+        }
+        .modal-overlay.show { opacity: 1; visibility: visible; }
+        .modal {
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 2rem;
+            width: 90%; max-width: 420px;
+            box-shadow: var(--shadow);
+            transform: scale(0.9); transition: var(--transition);
+        }
+        .modal-overlay.show .modal { transform: scale(1); }
+        .modal h3 { margin-bottom: 0.5rem; }
+        .modal p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem; line-height: 1.5; }
+        .modal-buttons { display: flex; gap: 10px; }
+        .modal-buttons .btn { flex: 1; }
+        .btn-cancel {
+            background: var(--bg-card); color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+        .btn-cancel:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+
+        /* ===== Empty State ===== */
+        .empty-state {
+            text-align: center; padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 768px) {
+            .navbar { padding: 0 1rem; }
+            .container { padding: 1rem; }
+            .user-stats { grid-template-columns: repeat(2, 1fr); }
+            .shop-grid { grid-template-columns: 1fr; }
+            .code-input input { width: 42px; height: 48px; font-size: 1.2rem; }
+            .login-card { padding: 2rem 1.5rem; }
+            .admin-table { font-size: 0.8rem; }
+            .admin-table th, .admin-table td { padding: 8px 6px; }
+            .admin-form-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ===== Admin Panel ===== */
+        .admin-toolbar {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 1.25rem; flex-wrap: wrap; gap: 10px;
+        }
+        .admin-toolbar .btn-group { display: flex; gap: 8px; }
+        .btn-admin {
+            background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+            color: #fff; padding: 8px 16px; font-size: 0.85rem;
+        }
+        .btn-admin:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(52,152,219,0.4); }
+        .btn-danger {
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: #fff; padding: 6px 12px; font-size: 0.8rem;
+        }
+        .btn-danger:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(233,69,96,0.4); }
+        .btn-sm {
+            padding: 5px 10px; font-size: 0.78rem; border-radius: 6px;
+        }
+        .btn-edit {
+            background: rgba(52,152,219,0.15); border: 1px solid rgba(52,152,219,0.3);
+            color: var(--blue); cursor: pointer; transition: var(--transition);
+        }
+        .btn-edit:hover { background: rgba(52,152,219,0.3); }
+        .btn-del {
+            background: rgba(233,69,96,0.15); border: 1px solid rgba(233,69,96,0.3);
+            color: var(--accent); cursor: pointer; transition: var(--transition);
+        }
+        .btn-del:hover { background: rgba(233,69,96,0.3); }
+        .admin-table {
+            width: 100%; border-collapse: collapse;
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            border-radius: var(--radius); overflow: hidden;
+        }
+        .admin-table th {
+            background: rgba(255,255,255,0.04); color: var(--text-secondary);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px;
+            padding: 10px 12px; text-align: left; white-space: nowrap;
+        }
+        .admin-table td {
+            padding: 10px 12px; border-top: 1px solid var(--border);
+            font-size: 0.88rem; vertical-align: middle;
+        }
+        .admin-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .admin-table .type-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .admin-table .type-badge.type-item {
+            background: rgba(46,204,113,0.15); color: var(--green);
+        }
+        .admin-table .type-badge.type-command {
+            background: rgba(243,156,18,0.15); color: var(--gold);
+        }
+        .admin-table .actions { display: flex; gap: 6px; }
+
+        /* Admin Form */
+        .admin-form-card {
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem;
+        }
+        .admin-form-card h3 { margin-bottom: 1rem; font-size: 1.1rem; }
+        .admin-form-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+        }
+        .admin-form-grid .full-width { grid-column: 1 / -1; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; }
+        .form-group label {
+            font-size: 0.8rem; color: var(--text-secondary); font-weight: 500;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); padding: 8px 12px;
+            color: var(--text-primary); font-size: 0.9rem;
+            outline: none; transition: var(--transition); font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--accent); box-shadow: 0 0 0 2px rgba(233,69,96,0.15);
+        }
+        .form-group textarea { resize: vertical; min-height: 60px; }
+        .form-group .hint-text { font-size: 0.75rem; color: var(--text-muted); }
+
+        /* Admin Edit Modal */
+        .modal-wide { max-width: 600px; }
+        .modal-wide .admin-form-grid { gap: 10px; }
+
+        /* ===== Pagination ===== */
+        .pagination {
+            display: flex; align-items: center; justify-content: center;
+            gap: 6px; margin-top: 1.25rem;
+        }
+        .pagination button {
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            color: var(--text-secondary); padding: 6px 12px;
+            border-radius: var(--radius-sm); cursor: pointer;
+            font-size: 0.85rem; transition: var(--transition);
+        }
+        .pagination button:hover:not(:disabled) {
+            background: var(--accent); color: #fff; border-color: var(--accent);
+        }
+        .pagination button.active {
+            background: var(--accent); color: #fff; border-color: var(--accent);
+        }
+        .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .pagination .page-info {
+            font-size: 0.8rem; color: var(--text-muted); padding: 0 8px;
+        }
+
+        /* ===== Redemption Records ===== */
+        .records-table {
+            width: 100%; border-collapse: collapse;
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            border-radius: var(--radius); overflow: hidden;
+        }
+        .records-table th {
+            background: rgba(255,255,255,0.04); color: var(--text-secondary);
+            font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px;
+            padding: 10px 14px; text-align: left;
+        }
+        .records-table td {
+            padding: 10px 14px; border-top: 1px solid var(--border);
+            font-size: 0.88rem;
+        }
+        .records-table tr:hover td { background: rgba(255,255,255,0.02); }
+        .records-scope-toggle {
+            display: flex; gap: 8px; margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-particles"></div>
+
+    <!-- ===== Navbar ===== -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="icon">⛏️</span>
+            <span>签到积分商店</span>
+        </div>
+        <div class="nav-links" id="navLinks" style="display: none;">
+            <button class="active" data-page="shop">🛒 商店</button>
+            <button data-page="leaderboard">🏆 排行榜</button>
+            <button data-page="records">📋 兑换记录</button>
+            <button data-page="admin" id="navAdminBtn" style="display:none;">⚙️ 管理</button>
+        </div>
+        <div class="nav-user" id="navUser" style="display: none;">
+            <span class="points-badge" id="navPoints">0 积分</span>
+            <span class="user-name" id="navUserName"></span>
+            <button class="btn-logout" onclick="logout()">退出</button>
+        </div>
+    </nav>
+
+    <!-- ===== Login Page ===== -->
+    <div id="loginPage" class="login-container">
+        <div class="login-card fade-in">
+            <h1>⛏️ 签到积分商店</h1>
+            <p>使用游戏内登录码登录，兑换你的签到积分</p>
+            <div class="hint">
+                💡 在游戏内输入指令 <code>/checkin code</code> 获取 6 位登录码，有效期 5 分钟。
+            </div>
+            <div class="code-input" id="codeInputGroup">
+                <input type="text" maxlength="1" autofocus>
+                <input type="text" maxlength="1">
+                <input type="text" maxlength="1">
+                <input type="text" maxlength="1">
+                <input type="text" maxlength="1">
+                <input type="text" maxlength="1">
+            </div>
+            <button class="btn btn-primary" id="loginBtn" onclick="login()">登 录</button>
+            <p style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">
+                登录码区分大小写无关，输入后点击登录
+            </p>
+        </div>
+    </div>
+
+    <!-- ===== Main Content (after login) ===== -->
+    <div id="mainContent" style="display: none;">
+        <div class="container">
+            <!-- User Stats -->
+            <div class="user-stats" id="userStats">
+                <div class="stat-card fade-in">
+                    <div class="stat-label">💰 当前积分</div>
+                    <div class="stat-value" id="statPoints">0</div>
+                </div>
+                <div class="stat-card fade-in fade-in-delay-1">
+                    <div class="stat-label">🔥 连续签到</div>
+                    <div class="stat-value" id="statConsecutive">0 天</div>
+                </div>
+                <div class="stat-card fade-in fade-in-delay-2">
+                    <div class="stat-label">📅 总签到次数</div>
+                    <div class="stat-value" id="statTotal">0</div>
+                </div>
+                <div class="stat-card fade-in fade-in-delay-3">
+                    <div class="stat-label">✅ 今日签到</div>
+                    <div class="stat-value" id="statToday">--</div>
+                </div>
+            </div>
+
+            <!-- Shop Page -->
+            <div id="pageShop" class="page-section active">
+                <div class="section-title"><span class="icon">🛒</span> 积分兑换商店</div>
+                <div class="category-filter" id="categoryFilter"></div>
+                <div class="shop-grid" id="shopGrid"></div>
+            </div>
+
+            <!-- Leaderboard Page -->
+            <div id="pageLeaderboard" class="page-section">
+                <div class="section-title"><span class="icon">🏆</span> 积分排行榜</div>
+                <div class="leaderboard" id="leaderboardList"></div>
+                <div class="pagination" id="leaderboardPagination"></div>
+            </div>
+
+            <!-- Records Page -->
+            <div id="pageRecords" class="page-section">
+                <div class="section-title"><span class="icon">📋</span> 兑换记录</div>
+                <div class="records-scope-toggle" id="recordsScopeToggle">
+                    <button class="category-btn active" onclick="setRecordScope('mine')">我的记录</button>
+                    <button class="category-btn" id="recordsAllBtn" style="display:none;" onclick="setRecordScope('all')">全部记录</button>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="records-table">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>玩家</th>
+                                <th>商品</th>
+                                <th>类型</th>
+                                <th>花费</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recordsTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="recordsPagination"></div>
+            </div>
+
+            <!-- Admin Page -->
+            <div id="pageAdmin" class="page-section">
+                <div class="section-title"><span class="icon">⚙️</span> 商品管理</div>
+
+                <!-- Add Item Form -->
+                <div class="admin-form-card fade-in">
+                    <h3>➕ 添加商品</h3>
+                    <div class="admin-form-grid" id="addItemForm">
+                        <div class="form-group">
+                            <label>商品类型</label>
+                            <select id="addType" onchange="toggleAddFields()">
+                                <option value="item">物品</option>
+                                <option value="command">指令</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>显示名称 *</label>
+                            <input type="text" id="addDisplayName" placeholder="如：钻石">
+                        </div>
+                        <div class="form-group" id="addItemIdGroup">
+                            <label>物品 ID</label>
+                            <input type="text" id="addItemId" placeholder="minecraft:diamond">
+                        </div>
+                        <div class="form-group" id="addCommandGroup" style="display:none;">
+                            <label>执行指令</label>
+                            <input type="text" id="addCommand" placeholder="give {player} minecraft:diamond 1">
+                            <span class="hint-text">{player} 会替换为玩家游戏名</span>
+                        </div>
+                        <div class="form-group" id="addIconUrlGroup" style="display:none;">
+                            <label>图标 URL</label>
+                            <input type="text" id="addIconUrl" placeholder="https://example.com/icon.png">
+                            <span class="hint-text">指令商品的自定义图标，留空显示默认图标</span>
+                        </div>
+                        <div class="form-group">
+                            <label>价格 (积分) *</label>
+                            <input type="number" id="addPrice" min="1" value="100">
+                        </div>
+                        <div class="form-group">
+                            <label>数量</label>
+                            <input type="number" id="addCount" min="1" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label>分类</label>
+                            <input type="text" id="addCategory" placeholder="矿物">
+                        </div>
+                        <div class="form-group">
+                            <label>描述</label>
+                            <input type="text" id="addDescription" placeholder="闪闪发光的钻石">
+                        </div>
+                        <div class="form-group">
+                            <label>每日限购</label>
+                            <input type="number" id="addDailyLimit" min="0" value="0">
+                            <span class="hint-text">0 = 不限购</span>
+                        </div>
+                        <div class="form-group full-width" style="align-items:flex-end;">
+                            <button class="btn btn-admin" onclick="adminAddItem()">添加商品</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Toolbar -->
+                <div class="admin-toolbar">
+                    <span style="color:var(--text-secondary);font-size:0.9rem;" id="adminItemCount">共 0 件商品</span>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-edit" onclick="adminReload()">🔄 重新加载配置</button>
+                    </div>
+                </div>
+
+                <!-- Items Table -->
+                <div style="overflow-x:auto;">
+                    <table class="admin-table" id="adminTable">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>类型</th>
+                                <th>名称</th>
+                                <th>物品/指令</th>
+                                <th>价格</th>
+                                <th>数量</th>
+                                <th>分类</th>
+                                <th>限购</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Confirm Modal ===== -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal">
+            <h3 id="modalTitle">确认兑换</h3>
+            <p id="modalMessage"></p>
+            <div class="modal-buttons">
+                <button class="btn btn-cancel" onclick="closeModal()">取消</button>
+                <button class="btn btn-buy" id="modalConfirmBtn" onclick="confirmBuy()">确认兑换</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Admin Edit Modal ===== -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal modal-wide">
+            <h3>✏️ 编辑商品</h3>
+            <div class="admin-form-grid" style="margin-bottom:1.25rem;">
+                <input type="hidden" id="editId">
+                <div class="form-group">
+                    <label>商品类型</label>
+                    <select id="editType" onchange="toggleEditFields()">
+                        <option value="item">物品</option>
+                        <option value="command">指令</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>显示名称 *</label>
+                    <input type="text" id="editDisplayName">
+                </div>
+                <div class="form-group" id="editItemIdGroup">
+                    <label>物品 ID</label>
+                    <input type="text" id="editItemId">
+                </div>
+                <div class="form-group" id="editCommandGroup" style="display:none;">
+                    <label>执行指令</label>
+                    <input type="text" id="editCommand">
+                    <span class="hint-text">{player} 会替换为玩家游戏名</span>
+                </div>
+                <div class="form-group" id="editIconUrlGroup" style="display:none;">
+                    <label>图标 URL</label>
+                    <input type="text" id="editIconUrl" placeholder="https://example.com/icon.png">
+                    <span class="hint-text">指令商品的自定义图标</span>
+                </div>
+                <div class="form-group">
+                    <label>价格 (积分) *</label>
+                    <input type="number" id="editPrice" min="1">
+                </div>
+                <div class="form-group">
+                    <label>数量</label>
+                    <input type="number" id="editCount" min="1">
+                </div>
+                <div class="form-group">
+                    <label>分类</label>
+                    <input type="text" id="editCategory">
+                </div>
+                <div class="form-group">
+                    <label>描述</label>
+                    <input type="text" id="editDescription">
+                </div>
+                <div class="form-group">
+                    <label>每日限购</label>
+                    <input type="number" id="editDailyLimit" min="0">
+                    <span class="hint-text">0 = 不限购</span>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-cancel" onclick="closeEditModal()">取消</button>
+                <button class="btn btn-admin" onclick="adminSaveEdit()">保存修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Delete Confirm Modal ===== -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal">
+            <h3>⚠️ 确认删除</h3>
+            <p id="deleteMessage"></p>
+            <div class="modal-buttons">
+                <button class="btn btn-cancel" onclick="closeDeleteModal()">取消</button>
+                <button class="btn btn-danger" onclick="adminConfirmDelete()">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ==================== State ====================
+        let token = localStorage.getItem('checkin_token');
+        let userInfo = null;
+        let shopItems = [];
+        let currentCategory = '全部';
+        let pendingBuyId = null;
+        let isAdmin = false;
+        let pendingDeleteId = null;
+        let leaderboardPage = 1;
+        let recordsPage = 1;
+        let recordsScope = 'mine';
+
+        // ==================== Init ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            setupCodeInputs();
+            if (token) {
+                fetchUser().then(ok => {
+                    if (ok) showMain();
+                    else showLogin();
+                });
+            } else {
+                showLogin();
+            }
+        });
+
+        // ==================== Code Input UX ====================
+        function setupCodeInputs() {
+            const inputs = document.querySelectorAll('.code-input input');
+            inputs.forEach((input, idx) => {
+                input.addEventListener('input', e => {
+                    const val = e.target.value.toUpperCase();
+                    e.target.value = val;
+                    if (val && idx < inputs.length - 1) inputs[idx + 1].focus();
+                });
+                input.addEventListener('keydown', e => {
+                    if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+                        inputs[idx - 1].focus();
+                    }
+                    if (e.key === 'Enter') login();
+                });
+                input.addEventListener('paste', e => {
+                    e.preventDefault();
+                    const text = (e.clipboardData || window.clipboardData).getData('text').toUpperCase().replace(/[^A-Z0-9]/g, '');
+                    for (let i = 0; i < Math.min(text.length, inputs.length); i++) {
+                        inputs[i].value = text[i];
+                    }
+                    if (text.length >= inputs.length) inputs[inputs.length - 1].focus();
+                    else if (text.length > 0) inputs[text.length].focus();
+                });
+            });
+        }
+
+        function getCode() {
+            return Array.from(document.querySelectorAll('.code-input input'))
+                .map(i => i.value).join('');
+        }
+
+        // ==================== Auth ====================
+
+        async function login() {
+            const code = getCode();
+            if (code.length !== 6) {
+                toast('请输入完整的 6 位登录码', 'error');
+                return;
+            }
+            const btn = document.getElementById('loginBtn');
+            btn.disabled = true;
+            btn.textContent = '登录中...';
+            try {
+                const res = await api('POST', '/api/login', { code });
+                if (res.success) {
+                    token = res.token;
+                    isAdmin = !!res.isOp;
+                    localStorage.setItem('checkin_token', token);
+                    toast(`欢迎回来，${res.playerName}！`, 'success');
+                    await fetchUser();
+                    showMain();
+                } else {
+                    toast(res.message || '登录失败', 'error');
+                }
+            } catch (e) {
+                toast('网络错误，请重试', 'error');
+            }
+            btn.disabled = false;
+            btn.textContent = '登 录';
+        }
+
+        async function logout() {
+            try { await api('POST', '/api/logout'); } catch (_) {}
+            token = null;
+            userInfo = null;
+            localStorage.removeItem('checkin_token');
+            showLogin();
+            toast('已退出登录', 'info');
+        }
+
+        // ==================== API Helper ====================
+        async function api(method, url, body) {
+            const opts = {
+                method,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (token) opts.headers['Authorization'] = `Bearer ${token}`;
+            if (body) opts.body = JSON.stringify(body);
+            const res = await fetch(url, opts);
+            return res.json();
+        }
+
+        // ==================== Data Fetching ====================
+        async function fetchUser() {
+            try {
+                const res = await api('GET', '/api/user');
+                if (res.success) {
+                    userInfo = res;
+                    isAdmin = !!res.isAdmin;
+                    updateUserUI();
+                    return true;
+                }
+                return false;
+            } catch {
+                return false;
+            }
+        }
+
+        async function fetchShop() {
+            try {
+                const res = await api('GET', '/api/shop');
+                if (res.success) {
+                    shopItems = res.items;
+                    renderCategories();
+                    renderShopItems();
+                }
+            } catch (e) {
+                console.error('Failed to fetch shop', e);
+            }
+        }
+
+        async function fetchLeaderboard(page) {
+            if (page) leaderboardPage = page;
+            try {
+                const res = await api('GET', `/api/leaderboard?page=${leaderboardPage}&size=20`);
+                if (res.success) {
+                    renderLeaderboard(res.leaderboard);
+                    renderPagination('leaderboardPagination', res.page, res.totalPages, fetchLeaderboard);
+                }
+            } catch (e) {
+                console.error('Failed to fetch leaderboard', e);
+            }
+        }
+
+        // ==================== UI Updates ====================
+        function showLogin() {
+            document.getElementById('loginPage').style.display = 'flex';
+            document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('navLinks').style.display = 'none';
+            document.getElementById('navUser').style.display = 'none';
+            document.getElementById('navAdminBtn').style.display = 'none';
+            isAdmin = false;
+            document.querySelectorAll('.code-input input').forEach(i => i.value = '');
+        }
+
+        function showMain() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+            document.getElementById('navLinks').style.display = 'flex';
+            document.getElementById('navUser').style.display = 'flex';
+            // Show admin tab if user is OP
+            document.getElementById('navAdminBtn').style.display = isAdmin ? '' : 'none';
+            fetchShop();
+            setupNavLinks();
+        }
+
+        function updateUserUI() {
+            if (!userInfo) return;
+            document.getElementById('navUserName').textContent = userInfo.playerName;
+            document.getElementById('navPoints').textContent = userInfo.points + ' 积分';
+            document.getElementById('statPoints').textContent = userInfo.points;
+            document.getElementById('statConsecutive').textContent = userInfo.consecutiveDays + ' 天';
+            document.getElementById('statTotal').textContent = userInfo.totalCheckins;
+            document.getElementById('statToday').textContent = userInfo.checkedInToday ? '✅ 已签到' : '❌ 未签到';
+        }
+
+        // ==================== Navigation ====================
+        function setupNavLinks() {
+            document.querySelectorAll('.nav-links button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.nav-links button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    const page = btn.dataset.page;
+                    document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+                    document.getElementById('page' + capitalize(page)).classList.add('active');
+                    if (page === 'leaderboard') { leaderboardPage = 1; fetchLeaderboard(); }
+                    if (page === 'shop') { fetchShop(); fetchUser(); }
+                    if (page === 'records') { recordsPage = 1; fetchRecords(); updateRecordsScopeUI(); }
+                    if (page === 'admin') { fetchShop().then(() => renderAdminTable()); }
+                });
+            });
+        }
+
+        function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+        // ==================== Shop Rendering ====================
+
+        function getItemIconHtml(item) {
+            if (item.type === 'command') {
+                // 指令商品：优先用 iconUrl，否则用 emoji
+                if (item.iconUrl) {
+                    return `<img src="${esc(item.iconUrl)}" alt="${esc(item.displayName)}" onerror="this.outerHTML='⚡'">`;
+                }
+                return '⚡';
+            }
+            // 物品商品：用 Minecraft 原版材质
+            if (item.itemId) {
+                return `<img src="/api/item-icon/${encodeURIComponent(item.itemId)}" alt="${esc(item.displayName)}" onerror="this.outerHTML='📦'">`;
+            }
+            return '📦';
+        }
+
+        function renderCategories() {
+            const cats = ['全部', ...new Set(shopItems.map(i => i.category))];
+            const container = document.getElementById('categoryFilter');
+            container.innerHTML = cats.map(c =>
+                `<button class="category-btn ${c === currentCategory ? 'active' : ''}" onclick="filterCategory('${c}')">${c}</button>`
+            ).join('');
+        }
+
+        function filterCategory(cat) {
+            currentCategory = cat;
+            renderCategories();
+            renderShopItems();
+        }
+
+        function renderShopItems() {
+            const grid = document.getElementById('shopGrid');
+            const items = currentCategory === '全部' ? shopItems : shopItems.filter(i => i.category === currentCategory);
+
+            if (items.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><div class="icon">📦</div><p>暂无商品</p></div>';
+                return;
+            }
+
+            grid.innerHTML = items.map((item, idx) => {
+                const isCmd = item.type === 'command';
+                const iconHtml = getItemIconHtml(item);
+                const meta = isCmd
+                    ? `⚡ 指令商品`
+                    : `📦 ${esc(item.itemId)} × ${item.count}`;
+                const hasLimit = item.dailyLimit > 0;
+                const remaining = hasLimit ? item.dailyLimit - (item.todayPurchased || 0) : Infinity;
+                const limitReached = hasLimit && remaining <= 0;
+                const limitHtml = hasLimit
+                    ? `<span class="daily-limit-badge ${limitReached ? '' : 'available'}">限购 ${item.todayPurchased || 0}/${item.dailyLimit}</span>`
+                    : '';
+                const pointsInsufficient = userInfo && userInfo.points < item.price;
+                const disabled = pointsInsufficient || limitReached;
+                const disabledReason = limitReached ? '今日已达限购' : (pointsInsufficient ? '积分不足' : '');
+                return `
+                <div class="shop-item fade-in" style="animation-delay: ${idx * 0.05}s">
+                    <div class="item-icon">${iconHtml}</div>
+                    <div class="item-name">${esc(item.displayName)}</div>
+                    <div class="item-desc">${esc(item.description)}</div>
+                    <div class="item-meta">${meta} ${limitHtml}</div>
+                    <div class="item-footer">
+                        <span class="item-price">🪙 ${item.price}</span>
+                        <button class="btn btn-buy" onclick="buy(${item.id})"
+                            ${disabled ? `disabled title="${disabledReason}"` : ''}>
+                            兑换
+                        </button>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        // ==================== Buy Flow ====================
+        function buy(id) {
+            const item = shopItems.find(i => i.id === id);
+            if (!item) return;
+            pendingBuyId = id;
+            document.getElementById('modalTitle').textContent = '确认兑换';
+            document.getElementById('modalMessage').innerHTML =
+                `确定要用 <strong style="color:var(--gold)">${item.price} 积分</strong> 兑换 ` +
+                `<strong>${esc(item.displayName)}</strong> × ${item.count} 吗？<br><br>` +
+                `<span style="color:var(--text-muted);font-size:0.85rem">⚠️ 你需要在游戏中在线才能收到物品</span>`;
+            document.getElementById('confirmModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('confirmModal').classList.remove('show');
+            pendingBuyId = null;
+        }
+
+        async function confirmBuy() {
+            if (pendingBuyId == null) return;
+            const btn = document.getElementById('modalConfirmBtn');
+            btn.disabled = true;
+            btn.textContent = '处理中...';
+
+            try {
+                const res = await api('POST', '/api/shop/buy', { itemId: pendingBuyId });
+                if (res.success) {
+                    toast(res.message, 'success');
+                    if (res.remainingPoints !== undefined) {
+                        userInfo.points = res.remainingPoints;
+                        updateUserUI();
+                    }
+                    await fetchShop();
+                } else {
+                    toast(res.message || '兑换失败', 'error');
+                }
+            } catch (e) {
+                toast('网络错误，请重试', 'error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = '确认兑换';
+            closeModal();
+            fetchUser(); // refresh
+        }
+
+        // ==================== Leaderboard ====================
+        function renderLeaderboard(data) {
+            const container = document.getElementById('leaderboardList');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">🏆</div><p>暂无排行数据</p></div>';
+                return;
+            }
+            container.innerHTML = data.map(row => `
+                <div class="leaderboard-row">
+                    <span class="rank">${row.rank}</span>
+                    <span class="player-name">${esc(row.playerName)}</span>
+                    <span class="player-points">🪙 ${row.points}</span>
+                </div>
+            `).join('');
+        }
+
+        // ==================== Toast ====================
+        function toast(message, type = 'info') {
+            const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+            const container = document.getElementById('toastContainer');
+            const el = document.createElement('div');
+            el.className = `toast ${type}`;
+            el.innerHTML = `<span class="toast-icon">${icons[type]}</span><span class="toast-msg">${esc(message)}</span>`;
+            container.appendChild(el);
+            setTimeout(() => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateX(100px)';
+                el.style.transition = '0.3s ease';
+                setTimeout(() => el.remove(), 300);
+            }, 3500);
+        }
+
+        // ==================== Utility ====================
+        function esc(s) {
+            if (!s) return '';
+            const div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        // ==================== Pagination ====================
+        function renderPagination(containerId, currentPage, totalPages, fetchFn) {
+            const container = document.getElementById(containerId);
+            if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+            let html = '';
+            html += `<button ${currentPage <= 1 ? 'disabled' : ''} onclick="(${fetchFn.name})(${currentPage - 1})">‹</button>`;
+
+            const start = Math.max(1, currentPage - 2);
+            const end = Math.min(totalPages, currentPage + 2);
+            if (start > 1) html += `<button onclick="(${fetchFn.name})(1)">1</button>`;
+            if (start > 2) html += `<span class="page-info">…</span>`;
+            for (let i = start; i <= end; i++) {
+                html += `<button class="${i === currentPage ? 'active' : ''}" onclick="(${fetchFn.name})(${i})">${i}</button>`;
+            }
+            if (end < totalPages - 1) html += `<span class="page-info">…</span>`;
+            if (end < totalPages) html += `<button onclick="(${fetchFn.name})(${totalPages})">${totalPages}</button>`;
+
+            html += `<button ${currentPage >= totalPages ? 'disabled' : ''} onclick="(${fetchFn.name})(${currentPage + 1})">›</button>`;
+            container.innerHTML = html;
+        }
+
+        // ==================== Redemption Records ====================
+        function setRecordScope(scope) {
+            recordsScope = scope;
+            recordsPage = 1;
+            updateRecordsScopeUI();
+            fetchRecords();
+        }
+
+        function updateRecordsScopeUI() {
+            document.getElementById('recordsAllBtn').style.display = isAdmin ? '' : 'none';
+            document.querySelectorAll('#recordsScopeToggle .category-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.includes(recordsScope === 'all' ? '全部' : '我的'));
+            });
+        }
+
+        async function fetchRecords(page) {
+            if (page) recordsPage = page;
+            try {
+                const res = await api('GET', `/api/redemptions?page=${recordsPage}&size=20&scope=${recordsScope}`);
+                if (res.success) {
+                    renderRecords(res.records);
+                    renderPagination('recordsPagination', res.page, res.totalPages, fetchRecords);
+                }
+            } catch (e) {
+                console.error('Failed to fetch records', e);
+            }
+        }
+
+        function renderRecords(records) {
+            const tbody = document.getElementById('recordsTableBody');
+            if (!records || records.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem;">暂无兑换记录</td></tr>';
+                return;
+            }
+            tbody.innerHTML = records.map(r => {
+                const date = new Date(r.timestamp);
+                const timeStr = date.toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+                const typeBadge = r.itemType === 'command'
+                    ? '<span class="type-badge type-command" style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;background:rgba(243,156,18,0.15);color:var(--gold);">指令</span>'
+                    : '<span class="type-badge type-item" style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:600;background:rgba(46,204,113,0.15);color:var(--green);">物品</span>';
+                return `<tr>
+                    <td>${timeStr}</td>
+                    <td>${esc(r.playerName)}</td>
+                    <td>${esc(r.itemDisplayName)}</td>
+                    <td>${typeBadge}</td>
+                    <td style="color:var(--gold);font-weight:600;">🪙 ${r.price}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // ==================== Admin Functions ====================
+
+        function toggleAddFields() {
+            const type = document.getElementById('addType').value;
+            document.getElementById('addItemIdGroup').style.display = type === 'item' ? '' : 'none';
+            document.getElementById('addCommandGroup').style.display = type === 'command' ? '' : 'none';
+            document.getElementById('addIconUrlGroup').style.display = type === 'command' ? '' : 'none';
+        }
+
+        function toggleEditFields() {
+            const type = document.getElementById('editType').value;
+            document.getElementById('editItemIdGroup').style.display = type === 'item' ? '' : 'none';
+            document.getElementById('editCommandGroup').style.display = type === 'command' ? '' : 'none';
+            document.getElementById('editIconUrlGroup').style.display = type === 'command' ? '' : 'none';
+        }
+
+        function renderAdminTable() {
+            const tbody = document.getElementById('adminTableBody');
+            document.getElementById('adminItemCount').textContent = `共 ${shopItems.length} 件商品`;
+
+            if (shopItems.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:2rem;">暂无商品</td></tr>';
+                return;
+            }
+            tbody.innerHTML = shopItems.map(item => {
+                const isCmd = item.type === 'command';
+                const typeBadge = isCmd
+                    ? '<span class="type-badge type-command">指令</span>'
+                    : '<span class="type-badge type-item">物品</span>';
+                const detail = isCmd ? esc(item.command) : esc(item.itemId);
+                const limitText = item.dailyLimit > 0 ? item.dailyLimit + '/日' : '不限';
+                return `<tr>
+                    <td>${item.id}</td>
+                    <td>${typeBadge}</td>
+                    <td>${esc(item.displayName)}</td>
+                    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(isCmd ? item.command : item.itemId)}">${detail}</td>
+                    <td style="color:var(--gold);font-weight:600;">🪙 ${item.price}</td>
+                    <td>${item.count}</td>
+                    <td>${esc(item.category)}</td>
+                    <td>${limitText}</td>
+                    <td class="actions">
+                        <button class="btn-sm btn-edit" onclick="adminEdit(${item.id})">✏️</button>
+                        <button class="btn-sm btn-del" onclick="adminDelete(${item.id})">🗑️</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function adminAddItem() {
+            const type = document.getElementById('addType').value;
+            const displayName = document.getElementById('addDisplayName').value.trim();
+            const price = parseInt(document.getElementById('addPrice').value);
+            if (!displayName) { toast('请输入商品名称', 'error'); return; }
+            if (!price || price < 1) { toast('请输入有效价格', 'error'); return; }
+
+            const body = {
+                type,
+                displayName,
+                description: document.getElementById('addDescription').value.trim(),
+                price,
+                count: parseInt(document.getElementById('addCount').value) || 1,
+                category: document.getElementById('addCategory').value.trim(),
+                itemId: type === 'item' ? document.getElementById('addItemId').value.trim() : '',
+                command: type === 'command' ? document.getElementById('addCommand').value.trim() : '',
+                iconUrl: type === 'command' ? document.getElementById('addIconUrl').value.trim() : '',
+                dailyLimit: parseInt(document.getElementById('addDailyLimit').value) || 0
+            };
+
+            try {
+                const res = await api('POST', '/api/admin/shop/add', body);
+                if (res.success) {
+                    toast('商品添加成功！', 'success');
+                    // 清空表单
+                    document.getElementById('addDisplayName').value = '';
+                    document.getElementById('addDescription').value = '';
+                    document.getElementById('addPrice').value = '100';
+                    document.getElementById('addCount').value = '1';
+                    document.getElementById('addCategory').value = '';
+                    document.getElementById('addItemId').value = '';
+                    document.getElementById('addCommand').value = '';
+                    document.getElementById('addIconUrl').value = '';
+                    document.getElementById('addDailyLimit').value = '0';
+                    await fetchShop();
+                    renderAdminTable();
+                } else {
+                    toast(res.message || '添加失败', 'error');
+                }
+            } catch (e) {
+                toast('网络错误', 'error');
+            }
+        }
+
+        function adminEdit(id) {
+            const item = shopItems.find(i => i.id === id);
+            if (!item) return;
+            document.getElementById('editId').value = item.id;
+            document.getElementById('editType').value = item.type || 'item';
+            document.getElementById('editDisplayName').value = item.displayName;
+            document.getElementById('editDescription').value = item.description || '';
+            document.getElementById('editPrice').value = item.price;
+            document.getElementById('editCount').value = item.count;
+            document.getElementById('editCategory').value = item.category || '';
+            document.getElementById('editItemId').value = item.itemId || '';
+            document.getElementById('editCommand').value = item.command || '';
+            document.getElementById('editIconUrl').value = item.iconUrl || '';
+            document.getElementById('editDailyLimit').value = item.dailyLimit || 0;
+            toggleEditFields();
+            document.getElementById('editModal').classList.add('show');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('show');
+        }
+
+        async function adminSaveEdit() {
+            const id = parseInt(document.getElementById('editId').value);
+            const type = document.getElementById('editType').value;
+            const displayName = document.getElementById('editDisplayName').value.trim();
+            const price = parseInt(document.getElementById('editPrice').value);
+            if (!displayName) { toast('名称不能为空', 'error'); return; }
+            if (!price || price < 1) { toast('价格无效', 'error'); return; }
+
+            const body = {
+                id, type, displayName,
+                description: document.getElementById('editDescription').value.trim(),
+                price,
+                count: parseInt(document.getElementById('editCount').value) || 1,
+                category: document.getElementById('editCategory').value.trim(),
+                itemId: type === 'item' ? document.getElementById('editItemId').value.trim() : '',
+                command: type === 'command' ? document.getElementById('editCommand').value.trim() : '',
+                iconUrl: type === 'command' ? document.getElementById('editIconUrl').value.trim() : '',
+                dailyLimit: parseInt(document.getElementById('editDailyLimit').value) || 0
+            };
+
+            try {
+                const res = await api('POST', '/api/admin/shop/update', body);
+                if (res.success) {
+                    toast('商品已更新', 'success');
+                    closeEditModal();
+                    await fetchShop();
+                    renderAdminTable();
+                } else {
+                    toast(res.message || '更新失败', 'error');
+                }
+            } catch (e) {
+                toast('网络错误', 'error');
+            }
+        }
+
+        function adminDelete(id) {
+            const item = shopItems.find(i => i.id === id);
+            if (!item) return;
+            pendingDeleteId = id;
+            document.getElementById('deleteMessage').innerHTML =
+                `确定要删除商品 <strong>${esc(item.displayName)}</strong> (ID: ${id}) 吗？<br><br>` +
+                `<span style="color:var(--text-muted);font-size:0.85rem;">此操作不可撤销。</span>`;
+            document.getElementById('deleteModal').classList.add('show');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('show');
+            pendingDeleteId = null;
+        }
+
+        async function adminConfirmDelete() {
+            if (pendingDeleteId == null) return;
+            try {
+                const res = await api('POST', '/api/admin/shop/delete', { id: pendingDeleteId });
+                if (res.success) {
+                    toast('商品已删除', 'success');
+                    await fetchShop();
+                    renderAdminTable();
+                } else {
+                    toast(res.message || '删除失败', 'error');
+                }
+            } catch (e) {
+                toast('网络错误', 'error');
+            }
+            closeDeleteModal();
+        }
+
+        async function adminReload() {
+            try {
+                const res = await api('POST', '/api/admin/shop/reload');
+                if (res.success) {
+                    toast(`配置已重新加载（${res.count} 件商品）`, 'success');
+                    await fetchShop();
+                    renderAdminTable();
+                } else {
+                    toast(res.message || '重载失败', 'error');
+                }
+            } catch (e) {
+                toast('网络错误', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

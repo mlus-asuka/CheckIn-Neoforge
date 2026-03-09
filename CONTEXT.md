@@ -1,7 +1,7 @@
 # CheckIn Mod — AI 开发上下文文档
 
 > **用途**：在新的 AI 会话中粘贴此文档，以便快速了解项目全貌并继续开发。  
-> **最后更新**：2026-03-01
+> **最后更新**：2026-03-09
 
 ---
 
@@ -20,7 +20,7 @@
 | 许可证 | MIT |
 | 版本 | 1.0-SNAPSHOT |
 
-**功能摘要**：每日签到获取随机积分 + 内嵌 Web 积分商店 + OP 管理后台 + 兑换记录 + 商品图标 + 每日限购。
+**功能摘要**：每日签到获取随机积分 + 内嵌 Web 积分商店 + 物品回收商店（可开关、每日限量） + OP 管理后台（侧边栏分页布局） + 兑换记录 + 商品图标 + 每日限购。
 
 ---
 
@@ -28,16 +28,17 @@
 
 ```
 src/main/java/cn/mlus/checkin/
-├── Checkin.java              (87行)  Mod 主类，事件注册，Web 服务器生命周期
-├── CheckinCommands.java     (273行)  Brigadier 命令注册
+├── Checkin.java              (81行)  Mod 主类，事件注册，Web 服务器生命周期
+├── CheckinCommands.java     (287行)  Brigadier 命令注册（含回收商店开关命令）
 ├── CheckinSavedData.java    (138行)  NBT SavedData 持久化
-├── Config.java               (72行)  ModConfigSpec 配置
+├── Config.java               (69行)  ModConfigSpec 配置（含 recycleShopEnabled）
 ├── PlayerLoginHandler.java   (36行)  登录自动签到
 ├── PointsManager.java       (288行)  积分管理 API（含分页排行榜）
 └── web/
-    ├── CheckinWebServer.java (768行)  内嵌 HTTP 服务器 + REST API + 物品贴图解析
-    ├── RedemptionLog.java    (140行)  兑换记录持久化（JSON）+ 每日限购查询
-    ├── ShopManager.java      (350行)  商品管理 + 兑换逻辑 + 每日限购
+    ├── CheckinWebServer.java (854行)  内嵌 HTTP 服务器 + REST API + 物品贴图 + 回收 API
+    ├── RecycleShopManager.java(272行)  回收商店管理 + 回收逻辑 + 每日限量
+    ├── RedemptionLog.java    (125行)  兑换/回收记录持久化（JSON）+ 每日限量查询
+    ├── ShopManager.java      (314行)  商品管理 + 兑换逻辑 + 每日限购
     └── WebAuthManager.java   (126行)  登录码 + Session 管理
 
 src/main/resources/
@@ -47,7 +48,7 @@ src/main/resources/
     │   ├── en_us.json                 (英文语言文件)
     │   └── zh_cn.json                 (中文语言文件)
     └── web/
-        └── index.html                 (SPA 前端，~1417行)
+        └── index.html                 (SPA 前端，~1966行)
 
 src/main/templates/META-INF/
 └── neoforge.mods.toml                 (模板，Gradle 替换变量)
@@ -62,7 +63,7 @@ src/main/templates/META-INF/
 - **CheckinSavedData**：继承 `SavedData`，内部 `PlayerCheckinInfo` 记录 `points`、`lastCheckinDate`、`consecutiveDays`、`totalCheckins`
 - **PointsManager**：封装 SavedData 操作，提供完整 API：`getPoints`、`setPoints`、`addPoints`、`removePoints`、`hasEnoughPoints`、`transferPoints`、`checkIn`、`hasCheckedInToday`、`getConsecutiveDays`、`getTotalCheckins`、`getLastCheckinDate`、`getTopPlayers`（支持分页 offset/limit）、`getTotalPlayerCount`、`getAllPoints`、`resetPlayer`
 - **PlayerLoginHandler**：监听 `PlayerEvent.PlayerLoggedInEvent`，自动签到（受 `Config.autoCheckin` 控制）
-- **Config**：字段 — `minPoints`(10)、`maxPoints`(50)、`autoCheckin`(true)、`consecutiveBonus`(1)、`maxConsecutiveBonus`(10)、`webEnabled`(true)、`webPort`(25580)
+- **Config**：字段 — `minPoints`(10)、`maxPoints`(50)、`autoCheckin`(true)、`consecutiveBonus`(1)、`maxConsecutiveBonus`(10)、`webEnabled`(true)、`webPort`(25580)、`recycleShopEnabled`(true)
 
 ### 3.2 Web 商店系统
 
@@ -80,6 +81,15 @@ src/main/templates/META-INF/
   - `buyItem()` 在服务器线程执行，物品类型通过 Registry 查找给予，指令类型通过 `performPrefixedCommand()` 执行
   - 兑换前检查每日限购次数（通过 `RedemptionLog.getPlayerItemCountToday()`）
   - 兑换成功后自动记录到 `RedemptionLog`
+- **RecycleShopManager**：
+  - 管理可回收物品列表，支持 CRUD
+  - `RecycleItem` record：`id`、`itemId`、`displayName`、`description`、`price`（单价积分）、`category`、`dailyLimit`（每日限量，0 = 不限）
+  - `sellItem()` 在服务器主线程执行：检查每日限量 → 检查背包物品数量 → 移除物品 → 给予积分
+  - 背包操作：`countItemInInventory()` / `removeItemFromInventory()` 遍历 `player.getInventory()`
+  - `load()` / `save()` 从 `checkin_recycle_shop.json` 读写
+  - 回收记录写入 `RedemptionLog`（type = `"recycle"`，price 为负值表示获得积分）
+  - `createDefaultConfig()` 生成 16 个默认回收商品（矿物、战利品分类）
+  - 管理员可通过命令或 API 开关回收商店
 - **RedemptionLog**：
   - 兑换记录持久化，使用 `CopyOnWriteArrayList` 保证线程安全
   - `load()` / `save()` 从 `checkin_redemptions.json` 读写
@@ -109,6 +119,13 @@ src/main/templates/META-INF/
 | POST | `/api/admin/shop/update` | 更新商品 | OP |
 | POST | `/api/admin/shop/delete` | 删除商品 | OP |
 | POST | `/api/admin/shop/reload` | 重载配置 | OP |
+| GET | `/api/recycle` | 回收商品列表（含 `dailyLimit`/`todayRecycled`） | 公开 |
+| POST | `/api/recycle/sell` | 回收物品（扣背包，给积分） | 登录 |
+| POST | `/api/admin/recycle/add` | 添加回收商品 | OP |
+| POST | `/api/admin/recycle/update` | 更新回收商品 | OP |
+| POST | `/api/admin/recycle/delete` | 删除回收商品 | OP |
+| POST | `/api/admin/recycle/reload` | 重载回收配置 | OP |
+| POST | `/api/admin/recycle/toggle` | 开关回收商店 | OP |
 
 ### 3.4 游戏内命令
 
@@ -128,11 +145,15 @@ src/main/templates/META-INF/
 
 - 单文件 SPA，暗色赛博风格主题
 - CSS 变量：`--bg-primary: #0f0f1a`、`--accent: #e94560`、`--gold: #f39c12`
-- 页面：登录页 → 商店页（分类筛选 + 商品卡片 + 每日限购标识）→ 排行榜（分页）→ 兑换记录（我的/全部切换）→ 管理页(OP)
+- 页面：登录页 → 商店页（分类筛选 + 商品卡片 + 每日限购标识）→ 回收页（分类筛选 + 回收卡片 + 每日限量标识）→ 排行榜（分页）→ 兑换记录（我的/全部切换）→ 管理页(OP)
+- 回收商店：物品回收页面，显示可回收物品及单价，输入数量确认回收，回收商店未开启时显示横幅提示
 - 商品图标：物品类型商品通过 `/api/item-icon/` 显示 Minecraft 原始贴图（`image-rendering: pixelated`），指令类型商品支持自定义 `iconUrl`
 - 每日限购：商品卡片显示限购标识（如 "限购 3/日"），达上限后按钮禁用
+- 每日限量回收：回收商品卡片显示限量标识（如 "限回收 2/10"），达上限后按钮禁用
 - 登录：游戏内 `/checkin code` 获取登录码（点击复制到剪贴板）
-- 管理页功能：添加商品表单（物品/指令切换，指令类型可设 iconUrl，可设每日限购）、商品表格、编辑弹窗、删除确认、重载配置
+- 管理页功能：**侧边栏标签页布局**（出售商店管理 / 回收商店管理），桌面端侧边栏 sticky 定位，移动端自动转为水平标签栏
+  - 出售商店管理：添加商品表单（物品/指令切换，指令类型可设 iconUrl，可设每日限购）、商品表格、编辑弹窗、删除确认、重载配置
+  - 回收商店管理：开关状态显示与切换、添加回收商品表单（含每日限量）、回收商品表格（含限量列）、编辑弹窗、删除确认、重载配置
 - 使用 `localStorage` 存储 token
 
 ---
@@ -190,6 +211,24 @@ src/main/templates/META-INF/
 ]
 ```
 
+### checkin_recycle_shop.json（自动生成）
+
+回收商品配置，首次启动自动生成 16 个默认商品。
+
+```json
+[
+  {
+    "id": 1,
+    "itemId": "minecraft:cobblestone",
+    "displayName": "圆石",
+    "description": "最基础的建筑材料",
+    "price": 1,
+    "category": "矿物",
+    "dailyLimit": 0
+  }
+]
+```
+
 ### checkin-server.toml（自动生成）
 
 ```toml
@@ -201,6 +240,7 @@ consecutiveBonus = 1
 maxConsecutiveBonus = 10
 webEnabled = true
 webPort = 25580
+recycleShopEnabled = true
 ```
 
 ---
@@ -246,6 +286,9 @@ webPort = 25580
 - [x] 兑换记录页面（含分页、我的/全部切换）
 - [x] 登录码点击复制
 - [x] 商品限购（每人每日限购）
+- [x] 物品回收商店（管理员可开关，玩家出售物品获得积分）
+- [x] 回收每日限量（每人每日回收次数上限）
+- [x] 管理页面侧边栏布局（出售商店 / 回收商店标签页切换）
 - [ ] 商品全局限购（全服总量）
 - [ ] 商品上下架状态
 - [ ] WebSocket 实时通知

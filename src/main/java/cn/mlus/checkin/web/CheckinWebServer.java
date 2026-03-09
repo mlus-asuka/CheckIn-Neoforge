@@ -40,12 +40,15 @@ public class CheckinWebServer {
     private MinecraftServer mcServer;
     private final WebAuthManager authManager;
     private final ShopManager shopManager;
+    private final RecycleShopManager recycleShopManager;
     private final int port;
 
-    public CheckinWebServer(int port, WebAuthManager authManager, ShopManager shopManager) {
+    public CheckinWebServer(int port, WebAuthManager authManager, ShopManager shopManager,
+                            RecycleShopManager recycleShopManager) {
         this.port = port;
         this.authManager = authManager;
         this.shopManager = shopManager;
+        this.recycleShopManager = recycleShopManager;
     }
 
     public void start(MinecraftServer mcServer) {
@@ -72,6 +75,17 @@ public class CheckinWebServer {
             httpServer.createContext("/api/admin/shop/update", this::handleAdminShopUpdate);
             httpServer.createContext("/api/admin/shop/delete", this::handleAdminShopDelete);
             httpServer.createContext("/api/admin/shop/reload", this::handleAdminShopReload);
+
+            // Recycle Shop API
+            httpServer.createContext("/api/recycle", this::handleRecycleShop);
+            httpServer.createContext("/api/recycle/sell", this::handleRecycleSell);
+
+            // Recycle Admin API
+            httpServer.createContext("/api/admin/recycle/add", this::handleAdminRecycleAdd);
+            httpServer.createContext("/api/admin/recycle/update", this::handleAdminRecycleUpdate);
+            httpServer.createContext("/api/admin/recycle/delete", this::handleAdminRecycleDelete);
+            httpServer.createContext("/api/admin/recycle/reload", this::handleAdminRecycleReload);
+            httpServer.createContext("/api/admin/recycle/toggle", this::handleAdminRecycleToggle);
 
             httpServer.start();
             LOGGER.info("CheckIn web server started on port {}", port);
@@ -635,6 +649,198 @@ public class CheckinWebServer {
         map.put("count", item.count());
         map.put("category", item.category());
         map.put("iconUrl", item.iconUrl());
+        map.put("dailyLimit", item.dailyLimit());
+        return map;
+    }
+
+    // ==================== Recycle Shop API ====================
+
+    private void handleRecycleShop(HttpExchange exchange) throws IOException {
+        if (!checkMethod(exchange, "GET")) return;
+        addCorsHeaders(exchange);
+
+        boolean enabled = recycleShopManager.isEnabled();
+
+        // 尝试获取当前登录用户（用于计算每日已回收次数）
+        String token = getToken(exchange);
+        UUID currentUuid = token != null ? authManager.validateToken(token) : null;
+        RedemptionLog log = shopManager.getRedemptionLog();
+
+        List<Map<String, Object>> items = recycleShopManager.getRecycleItems().stream().map(item -> {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("id", item.id());
+            map.put("itemId", item.itemId());
+            map.put("displayName", item.displayName());
+            map.put("description", item.description());
+            map.put("price", item.price());
+            map.put("category", item.category());
+            map.put("dailyLimit", item.dailyLimit());
+            if (item.dailyLimit() > 0 && currentUuid != null && log != null) {
+                map.put("todayRecycled", log.getPlayerItemCountToday(currentUuid, item.id()));
+            } else {
+                map.put("todayRecycled", 0);
+            }
+            return map;
+        }).toList();
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("enabled", enabled);
+        result.put("items", items);
+        sendJson(exchange, 200, result);
+    }
+
+    private void handleRecycleSell(HttpExchange exchange) throws IOException {
+        if (!checkMethod(exchange, "POST")) return;
+        addCorsHeaders(exchange);
+        UUID uuid = authenticate(exchange);
+        if (uuid == null) return;
+
+        try {
+            JsonObject body = readJsonBody(exchange);
+            int itemId = body.get("itemId").getAsInt();
+            int amount = getInt(body, "amount", 1);
+
+            CompletableFuture<RecycleShopManager.RecycleResult> future = new CompletableFuture<>();
+            mcServer.execute(() -> {
+                RecycleShopManager.RecycleResult result = recycleShopManager.sellItem(uuid, itemId, amount);
+                future.complete(result);
+            });
+
+            RecycleShopManager.RecycleResult result = future.get(5, TimeUnit.SECONDS);
+
+            if (result == null) {
+                sendJson(exchange, 500, Map.of("success", false, "message", "服务器处理超时"));
+                return;
+            }
+
+            int statusCode = result.success() ? 200 : 400;
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("success", result.success());
+            response.put("message", result.message());
+            if (result.success()) {
+                PointsManager pm = PointsManager.of(mcServer);
+                response.put("remainingPoints", pm.getPoints(uuid));
+            }
+            sendJson(exchange, statusCode, response);
+        } catch (TimeoutException e) {
+            sendJson(exchange, 500, Map.of("success", false, "message", "服务器处理超时"));
+        } catch (ExecutionException e) {
+            sendJson(exchange, 500, Map.of("success", false, "message", "服务器处理错误"));
+        } catch (Exception e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", "请求格式错误"));
+        }
+    }
+
+    // ==================== Recycle Admin API ====================
+
+    private void handleAdminRecycleAdd(HttpExchange exchange) throws IOException {
+        if (!checkMethodAny(exchange, "POST")) return;
+        addCorsHeaders(exchange);
+        if (!authenticateAdmin(exchange)) return;
+
+        try {
+            JsonObject body = readJsonBody(exchange);
+            String itemId = body.get("itemId").getAsString();
+            String displayName = body.get("displayName").getAsString();
+            String description = getStr(body, "description", "");
+            int price = body.get("price").getAsInt();
+            String category = getStr(body, "category", "");
+            int dailyLimit = getInt(body, "dailyLimit", 0);
+
+            RecycleShopManager.RecycleItem item = recycleShopManager.addItem(
+                    itemId, displayName, description, price, category, dailyLimit);
+
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("success", true);
+            resp.put("message", "回收商品已添加");
+            resp.put("item", recycleItemToMap(item));
+            sendJson(exchange, 200, resp);
+        } catch (Exception e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", "请求格式错误: " + e.getMessage()));
+        }
+    }
+
+    private void handleAdminRecycleUpdate(HttpExchange exchange) throws IOException {
+        if (!checkMethodAny(exchange, "POST")) return;
+        addCorsHeaders(exchange);
+        if (!authenticateAdmin(exchange)) return;
+
+        try {
+            JsonObject body = readJsonBody(exchange);
+            int id = body.get("id").getAsInt();
+            String itemId = body.get("itemId").getAsString();
+            String displayName = body.get("displayName").getAsString();
+            String description = getStr(body, "description", "");
+            int price = body.get("price").getAsInt();
+            String category = getStr(body, "category", "");
+            int dailyLimit = getInt(body, "dailyLimit", 0);
+
+            boolean ok = recycleShopManager.updateItem(id, itemId, displayName, description, price, category, dailyLimit);
+            if (ok) {
+                sendJson(exchange, 200, Map.of("success", true, "message", "回收商品已更新"));
+            } else {
+                sendJson(exchange, 404, Map.of("success", false, "message", "回收商品不存在"));
+            }
+        } catch (Exception e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", "请求格式错误: " + e.getMessage()));
+        }
+    }
+
+    private void handleAdminRecycleDelete(HttpExchange exchange) throws IOException {
+        if (!checkMethodAny(exchange, "POST")) return;
+        addCorsHeaders(exchange);
+        if (!authenticateAdmin(exchange)) return;
+
+        try {
+            JsonObject body = readJsonBody(exchange);
+            int id = body.get("id").getAsInt();
+            boolean ok = recycleShopManager.deleteItem(id);
+            if (ok) {
+                sendJson(exchange, 200, Map.of("success", true, "message", "回收商品已删除"));
+            } else {
+                sendJson(exchange, 404, Map.of("success", false, "message", "回收商品不存在"));
+            }
+        } catch (Exception e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", "请求格式错误"));
+        }
+    }
+
+    private void handleAdminRecycleReload(HttpExchange exchange) throws IOException {
+        if (!checkMethodAny(exchange, "POST")) return;
+        addCorsHeaders(exchange);
+        if (!authenticateAdmin(exchange)) return;
+
+        recycleShopManager.load();
+        sendJson(exchange, 200, Map.of("success", true, "message", "回收商品配置已重新加载",
+                "count", recycleShopManager.getRecycleItems().size()));
+    }
+
+    private void handleAdminRecycleToggle(HttpExchange exchange) throws IOException {
+        if (!checkMethodAny(exchange, "POST")) return;
+        addCorsHeaders(exchange);
+        if (!authenticateAdmin(exchange)) return;
+
+        try {
+            JsonObject body = readJsonBody(exchange);
+            boolean enabled = body.get("enabled").getAsBoolean();
+            recycleShopManager.setEnabled(enabled);
+            sendJson(exchange, 200, Map.of("success", true,
+                    "message", enabled ? "回收商店已开启" : "回收商店已关闭",
+                    "enabled", enabled));
+        } catch (Exception e) {
+            sendJson(exchange, 400, Map.of("success", false, "message", "请求格式错误"));
+        }
+    }
+
+    private Map<String, Object> recycleItemToMap(RecycleShopManager.RecycleItem item) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", item.id());
+        map.put("itemId", item.itemId());
+        map.put("displayName", item.displayName());
+        map.put("description", item.description());
+        map.put("price", item.price());
+        map.put("category", item.category());
         map.put("dailyLimit", item.dailyLimit());
         return map;
     }

@@ -1,6 +1,7 @@
 package cn.mlus.checkin;
 
 import cn.mlus.checkin.web.CheckinWebServer;
+import cn.mlus.checkin.web.RecycleShopManager;
 import cn.mlus.checkin.web.RedemptionLog;
 import cn.mlus.checkin.web.ShopManager;
 import cn.mlus.checkin.web.WebAuthManager;
@@ -36,6 +37,7 @@ public class Checkin {
 
     private final WebAuthManager webAuthManager = new WebAuthManager();
     private final ShopManager shopManager = new ShopManager(FMLPaths.CONFIGDIR.get());
+    private final RecycleShopManager recycleShopManager = new RecycleShopManager(FMLPaths.CONFIGDIR.get());
     private final RedemptionLog redemptionLog = new RedemptionLog(FMLPaths.CONFIGDIR.get());
     private CheckinWebServer webServer;
 
@@ -48,6 +50,7 @@ public class Checkin {
 
         // 将 WebAuthManager 传递给命令系统
         CheckinCommands.setWebAuthManager(webAuthManager);
+        CheckinCommands.setRecycleShopManager(recycleShopManager);
 
         LOGGER.info("CheckIn mod initialized");
     }
@@ -60,13 +63,19 @@ public class Checkin {
         shopManager.load();
         shopManager.setServer(event.getServer());
 
+        // 加载回收商店配置
+        recycleShopManager.load();
+        recycleShopManager.setServer(event.getServer());
+        recycleShopManager.setEnabled(Config.recycleShopEnabled);
+
         // 加载兑换记录
         redemptionLog.load();
         shopManager.setRedemptionLog(redemptionLog);
+        recycleShopManager.setRedemptionLog(redemptionLog);
 
         // 启动 Web 服务器
         if (Config.webEnabled) {
-            webServer = new CheckinWebServer(Config.webPort, webAuthManager, shopManager);
+            webServer = new CheckinWebServer(Config.webPort, webAuthManager, shopManager, recycleShopManager);
             webServer.start(event.getServer());
         }
     }

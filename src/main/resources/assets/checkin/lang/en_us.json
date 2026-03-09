@@ -21,5 +21,8 @@
   "checkin.transfer.insufficient": "§c[Check-In] §fInsufficient points for transfer!",
   "checkin.web.code": "§a[Check-In] §fYour login code: %1$s §7(click to copy)",
   "checkin.web.code_hint": "§7Open your browser and visit http://server-ip:§e%1$s§7 to login (valid for 5 min)",
-  "checkin.web.disabled": "§c[Check-In] §fWeb server is not enabled."
+  "checkin.web.disabled": "§c[Check-In] §fWeb server is not enabled.",
+  "checkin.recycle.enabled": "§a[Check-In] §fRecycle shop enabled",
+  "checkin.recycle.disabled": "§a[Check-In] §fRecycle shop disabled",
+  "checkin.recycle.unavailable": "§c[Check-In] §fRecycle shop is not available"
 }

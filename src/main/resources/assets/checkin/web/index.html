@@ -407,6 +407,42 @@
             .admin-form-grid { grid-template-columns: 1fr; }
         }
 
+        /* ===== Admin Sidebar Layout ===== */
+        .admin-layout {
+            display: flex; gap: 1.5rem; min-height: 400px;
+        }
+        .admin-sidebar {
+            width: 200px; flex-shrink: 0;
+            background: var(--bg-secondary); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 0.5rem; align-self: flex-start;
+            position: sticky; top: 80px;
+        }
+        .admin-sidebar-btn {
+            display: flex; align-items: center; gap: 8px; width: 100%;
+            padding: 10px 14px; border: none; border-radius: var(--radius-sm);
+            background: transparent; color: var(--text-secondary);
+            font-size: 0.9rem; cursor: pointer; transition: var(--transition);
+            text-align: left; font-family: inherit;
+        }
+        .admin-sidebar-btn:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
+        .admin-sidebar-btn.active {
+            background: rgba(233,69,96,0.12); color: var(--accent);
+            font-weight: 600; border-left: 3px solid var(--accent);
+        }
+        .admin-content { flex: 1; min-width: 0; }
+        .admin-tab-panel { display: none; }
+        .admin-tab-panel.active { display: block; }
+        @media (max-width: 768px) {
+            .admin-layout { flex-direction: column; }
+            .admin-sidebar {
+                width: 100%; position: static;
+                display: flex; flex-direction: row; gap: 4px;
+                overflow-x: auto; padding: 0.4rem;
+            }
+            .admin-sidebar-btn { white-space: nowrap; flex-shrink: 0; padding: 8px 12px; font-size: 0.82rem; }
+            .admin-sidebar-btn.active { border-left: none; border-bottom: 3px solid var(--accent); }
+        }
+
         /* ===== Admin Panel ===== */
         .admin-toolbar {
             display: flex; align-items: center; justify-content: space-between;
@@ -547,6 +583,7 @@
         </div>
         <div class="nav-links" id="navLinks" style="display: none;">
             <button class="active" data-page="shop">🛒 商店</button>
+            <button data-page="recycle">♻️ 回收</button>
             <button data-page="leaderboard">🏆 排行榜</button>
             <button data-page="records">📋 兑换记录</button>
             <button data-page="admin" id="navAdminBtn" style="display:none;">⚙️ 管理</button>
@@ -611,6 +648,16 @@
                 <div class="shop-grid" id="shopGrid"></div>
             </div>
 
+            <!-- Recycle Shop Page -->
+            <div id="pageRecycle" class="page-section">
+                <div class="section-title"><span class="icon">♻️</span> 物品回收商店</div>
+                <div id="recycleDisabledBanner" style="display:none;background:rgba(233,69,96,0.12);border:1px solid rgba(233,69,96,0.3);border-radius:var(--radius-sm);padding:12px 18px;margin-bottom:1.25rem;color:var(--accent);font-size:0.9rem;">
+                    ⚠️ 回收商店当前未开启
+                </div>
+                <div class="category-filter" id="recycleCategoryFilter"></div>
+                <div class="shop-grid" id="recycleGrid"></div>
+            </div>
+
             <!-- Leaderboard Page -->
             <div id="pageLeaderboard" class="page-section">
                 <div class="section-title"><span class="icon">🏆</span> 积分排行榜</div>
@@ -645,6 +692,18 @@
             <!-- Admin Page -->
             <div id="pageAdmin" class="page-section">
                 <div class="section-title"><span class="icon">⚙️</span> 商品管理</div>
+
+                <div class="admin-layout">
+                    <!-- Sidebar -->
+                    <div class="admin-sidebar">
+                        <button class="admin-sidebar-btn active" data-admin-tab="shopAdmin" onclick="switchAdminTab('shopAdmin')">🛒 出售商店</button>
+                        <button class="admin-sidebar-btn" data-admin-tab="recycleAdmin" onclick="switchAdminTab('recycleAdmin')">♻️ 回收商店</button>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="admin-content">
+                        <!-- ===== Shop Admin Tab ===== -->
+                        <div id="adminTabShopAdmin" class="admin-tab-panel active">
 
                 <!-- Add Item Form -->
                 <div class="admin-form-card fade-in">
@@ -729,6 +788,80 @@
                         <tbody id="adminTableBody"></tbody>
                     </table>
                 </div>
+
+                        </div>
+                        <!-- ===== Recycle Shop Admin Tab ===== -->
+                        <div id="adminTabRecycleAdmin" class="admin-tab-panel">
+                    <div class="section-title"><span class="icon">♻️</span> 回收商店管理</div>
+
+                    <!-- Recycle Toggle -->
+                    <div class="admin-toolbar">
+                        <span style="font-size:0.9rem;">
+                            状态：<span id="recycleStatusBadge" style="padding:3px 10px;border-radius:10px;font-size:0.8rem;font-weight:600;"></span>
+                        </span>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-edit" id="recycleToggleBtn" onclick="adminRecycleToggle()">开关</button>
+                            <button class="btn btn-sm btn-edit" onclick="adminRecycleReload()">🔄 重新加载</button>
+                        </div>
+                    </div>
+
+                    <!-- Add Recycle Item Form -->
+                    <div class="admin-form-card fade-in">
+                        <h3>➕ 添加回收商品</h3>
+                        <div class="admin-form-grid">
+                            <div class="form-group">
+                                <label>物品 ID *</label>
+                                <input type="text" id="addRecycleItemId" placeholder="minecraft:diamond">
+                            </div>
+                            <div class="form-group">
+                                <label>显示名称 *</label>
+                                <input type="text" id="addRecycleDisplayName" placeholder="钻石">
+                            </div>
+                            <div class="form-group">
+                                <label>回收单价 (积分) *</label>
+                                <input type="number" id="addRecyclePrice" min="1" value="10">
+                                <span class="hint-text">每个物品可获得的积分</span>
+                            </div>
+                            <div class="form-group">
+                                <label>分类</label>
+                                <input type="text" id="addRecycleCategory" placeholder="矿物">
+                            </div>
+                            <div class="form-group">
+                                <label>描述</label>
+                                <input type="text" id="addRecycleDescription" placeholder="闪闪发光的钻石">
+                            </div>
+                            <div class="form-group">
+                                <label>每日限量</label>
+                                <input type="number" id="addRecycleDailyLimit" min="0" value="0">
+                                <span class="hint-text">0 = 不限量</span>
+                            </div>
+                            <div class="form-group" style="align-items:flex-end;">
+                                <button class="btn btn-admin" onclick="adminRecycleAdd()">添加</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recycle Items Table -->
+                    <span style="color:var(--text-secondary);font-size:0.9rem;display:block;margin-bottom:0.75rem;" id="adminRecycleItemCount">共 0 件回收商品</span>
+                    <div style="overflow-x:auto;">
+                        <table class="admin-table" id="adminRecycleTable">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>物品 ID</th>
+                                    <th>名称</th>
+                                    <th>单价</th>
+                                    <th>分类</th>
+                                    <th>限量</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminRecycleTableBody"></tbody>
+                        </table>
+                    </div>
+                        </div>
+                    </div><!-- /.admin-content -->
+                </div><!-- /.admin-layout -->
             </div>
         </div>
     </div>
@@ -805,6 +938,45 @@
         </div>
     </div>
 
+    <!-- ===== Admin Recycle Edit Modal ===== -->
+    <div class="modal-overlay" id="recycleEditModal">
+        <div class="modal modal-wide">
+            <h3>✏️ 编辑回收商品</h3>
+            <div class="admin-form-grid" style="margin-bottom:1.25rem;">
+                <input type="hidden" id="editRecycleId">
+                <div class="form-group">
+                    <label>物品 ID *</label>
+                    <input type="text" id="editRecycleItemId">
+                </div>
+                <div class="form-group">
+                    <label>显示名称 *</label>
+                    <input type="text" id="editRecycleDisplayName">
+                </div>
+                <div class="form-group">
+                    <label>回收单价 (积分) *</label>
+                    <input type="number" id="editRecyclePrice" min="1">
+                </div>
+                <div class="form-group">
+                    <label>分类</label>
+                    <input type="text" id="editRecycleCategory">
+                </div>
+                <div class="form-group full-width">
+                    <label>描述</label>
+                    <input type="text" id="editRecycleDescription">
+                </div>
+                <div class="form-group">
+                    <label>每日限量</label>
+                    <input type="number" id="editRecycleDailyLimit" min="0">
+                    <span class="hint-text">0 = 不限量</span>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-cancel" onclick="closeRecycleEditModal()">取消</button>
+                <button class="btn btn-admin" onclick="adminRecycleSaveEdit()">保存修改</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ===== Delete Confirm Modal ===== -->
     <div class="modal-overlay" id="deleteModal">
         <div class="modal">
@@ -813,6 +985,26 @@
             <div class="modal-buttons">
                 <button class="btn btn-cancel" onclick="closeDeleteModal()">取消</button>
                 <button class="btn btn-danger" onclick="adminConfirmDelete()">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Recycle Sell Modal ===== -->
+    <div class="modal-overlay" id="recycleSellModal">
+        <div class="modal">
+            <h3 id="recycleSellTitle">确认回收</h3>
+            <p id="recycleSellMessage"></p>
+            <div style="margin-bottom:1rem;">
+                <label style="font-size:0.85rem;color:var(--text-secondary);display:block;margin-bottom:4px;">回收数量</label>
+                <input type="number" id="recycleSellAmount" min="1" value="1"
+                    style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;color:var(--text-primary);font-size:0.9rem;outline:none;width:100%;">
+            </div>
+            <div style="font-size:0.9rem;color:var(--gold);font-weight:600;margin-bottom:1rem;" id="recycleSellTotal">
+                预计获得：0 积分
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-cancel" onclick="closeRecycleSellModal()">取消</button>
+                <button class="btn btn-buy" id="recycleSellConfirmBtn" onclick="confirmRecycleSell()" style="background:linear-gradient(135deg,var(--green),var(--green-dark));">确认回收</button>
             </div>
         </div>
     </div>
@@ -832,6 +1024,11 @@
         let leaderboardPage = 1;
         let recordsPage = 1;
         let recordsScope = 'mine';
+        let recycleItems = [];
+        let recycleCurrentCategory = '全部';
+        let recycleEnabled = true;
+        let pendingRecycleSellId = null;
+        let pendingRecycleSellPrice = 0;
 
         // ==================== Init ====================
         document.addEventListener('DOMContentLoaded', () => {
@@ -1014,8 +1211,9 @@
                     document.getElementById('page' + capitalize(page)).classList.add('active');
                     if (page === 'leaderboard') { leaderboardPage = 1; fetchLeaderboard(); }
                     if (page === 'shop') { fetchShop(); fetchUser(); }
+                    if (page === 'recycle') { fetchRecycleShop(); fetchUser(); }
                     if (page === 'records') { recordsPage = 1; fetchRecords(); updateRecordsScopeUI(); }
-                    if (page === 'admin') { fetchShop().then(() => renderAdminTable()); }
+                    if (page === 'admin') { fetchShop().then(() => renderAdminTable()); fetchRecycleShop().then(() => { renderAdminRecycleTable(); updateRecycleStatusUI(); }); }
                 });
             });
         }
@@ -1254,6 +1452,313 @@
 
         // ==================== Admin Functions ====================
 
+        function switchAdminTab(tab) {
+            document.querySelectorAll('.admin-tab-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.admin-sidebar-btn').forEach(b => b.classList.remove('active'));
+            const panel = document.getElementById('adminTab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+            if (panel) panel.classList.add('active');
+            const btn = document.querySelector(`.admin-sidebar-btn[data-admin-tab="${tab}"]`);
+            if (btn) btn.classList.add('active');
+        }
+
+        // ==================== Recycle Shop ====================
+
+        async function fetchRecycleShop() {
+            try {
+                const res = await api('GET', '/api/recycle');
+                if (res.success) {
+                    recycleItems = res.items;
+                    recycleEnabled = res.enabled;
+                    renderRecycleCategories();
+                    renderRecycleItems();
+                }
+            } catch (e) {
+                console.error('Failed to fetch recycle shop', e);
+            }
+        }
+
+        function renderRecycleCategories() {
+            const cats = ['全部', ...new Set(recycleItems.map(i => i.category))];
+            const container = document.getElementById('recycleCategoryFilter');
+            container.innerHTML = cats.map(c =>
+                `<button class="category-btn ${c === recycleCurrentCategory ? 'active' : ''}" onclick="filterRecycleCategory('${c}')">${c}</button>`
+            ).join('');
+        }
+
+        function filterRecycleCategory(cat) {
+            recycleCurrentCategory = cat;
+            renderRecycleCategories();
+            renderRecycleItems();
+        }
+
+        function renderRecycleItems() {
+            const grid = document.getElementById('recycleGrid');
+            const banner = document.getElementById('recycleDisabledBanner');
+            banner.style.display = recycleEnabled ? 'none' : 'block';
+
+            const items = recycleCurrentCategory === '全部' ? recycleItems : recycleItems.filter(i => i.category === recycleCurrentCategory);
+
+            if (items.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><div class="icon">♻️</div><p>暂无可回收的物品</p></div>';
+                return;
+            }
+
+            grid.innerHTML = items.map((item, idx) => {
+                const iconHtml = item.itemId
+                    ? `<img src="/api/item-icon/${encodeURIComponent(item.itemId)}" alt="${esc(item.displayName)}" onerror="this.outerHTML='♻️'">`
+                    : '♻️';
+                const hasLimit = item.dailyLimit > 0;
+                const remaining = hasLimit ? item.dailyLimit - (item.todayRecycled || 0) : Infinity;
+                const limitReached = hasLimit && remaining <= 0;
+                const limitHtml = hasLimit
+                    ? `<span class="daily-limit-badge ${limitReached ? '' : 'available'}">限回收 ${item.todayRecycled || 0}/${item.dailyLimit}</span>`
+                    : '';
+                const disabled = limitReached || !recycleEnabled;
+                const disabledReason = limitReached ? '今日已达回收上限' : (!recycleEnabled ? '回收商店未开启' : '');
+                return `
+                <div class="shop-item fade-in" style="animation-delay: ${idx * 0.05}s">
+                    <div class="item-icon">${iconHtml}</div>
+                    <div class="item-name">${esc(item.displayName)}</div>
+                    <div class="item-desc">${esc(item.description)}</div>
+                    <div class="item-meta">📦 ${esc(item.itemId)} ${limitHtml}</div>
+                    <div class="item-footer">
+                        <span class="item-price" style="color:var(--green);">🪙 ${item.price}/个</span>
+                        <button class="btn btn-buy" onclick="recycleSell(${item.id})"
+                            ${disabled ? `disabled title="${disabledReason}"` : ''}>
+                            回收
+                        </button>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function recycleSell(id) {
+            const item = recycleItems.find(i => i.id === id);
+            if (!item) return;
+            pendingRecycleSellId = id;
+            pendingRecycleSellPrice = item.price;
+            document.getElementById('recycleSellTitle').textContent = '确认回收';
+            document.getElementById('recycleSellMessage').innerHTML =
+                `将背包中的 <strong>${esc(item.displayName)}</strong> 出售给系统<br>` +
+                `<span style="color:var(--text-muted);font-size:0.85rem;">单价：${item.price} 积分/个 · 需要在游戏中在线</span>`;
+            document.getElementById('recycleSellAmount').value = 1;
+            updateRecycleSellTotal();
+            document.getElementById('recycleSellModal').classList.add('show');
+
+            // 监听数量变化
+            document.getElementById('recycleSellAmount').oninput = updateRecycleSellTotal;
+        }
+
+        function updateRecycleSellTotal() {
+            const amount = Math.max(1, parseInt(document.getElementById('recycleSellAmount').value) || 1);
+            const total = pendingRecycleSellPrice * amount;
+            document.getElementById('recycleSellTotal').textContent = `预计获得：${total} 积分`;
+        }
+
+        function closeRecycleSellModal() {
+            document.getElementById('recycleSellModal').classList.remove('show');
+            pendingRecycleSellId = null;
+        }
+
+        async function confirmRecycleSell() {
+            if (pendingRecycleSellId == null) return;
+            const amount = Math.max(1, parseInt(document.getElementById('recycleSellAmount').value) || 1);
+            const btn = document.getElementById('recycleSellConfirmBtn');
+            btn.disabled = true;
+            btn.textContent = '处理中...';
+
+            try {
+                const res = await api('POST', '/api/recycle/sell', { itemId: pendingRecycleSellId, amount });
+                if (res.success) {
+                    toast(res.message, 'success');
+                    if (res.remainingPoints !== undefined) {
+                        userInfo.points = res.remainingPoints;
+                        updateUserUI();
+                    }
+                } else {
+                    toast(res.message || '回收失败', 'error');
+                }
+            } catch (e) {
+                toast('网络错误，请重试', 'error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = '确认回收';
+            closeRecycleSellModal();
+            fetchUser();
+        }
+
+        // ==================== Recycle Admin ====================
+
+        function updateRecycleStatusUI() {
+            const badge = document.getElementById('recycleStatusBadge');
+            if (recycleEnabled) {
+                badge.textContent = '已开启';
+                badge.style.background = 'rgba(46,204,113,0.15)';
+                badge.style.color = 'var(--green)';
+            } else {
+                badge.textContent = '已关闭';
+                badge.style.background = 'rgba(233,69,96,0.15)';
+                badge.style.color = 'var(--accent)';
+            }
+            document.getElementById('recycleToggleBtn').textContent = recycleEnabled ? '🔴 关闭' : '🟢 开启';
+        }
+
+        async function adminRecycleToggle() {
+            try {
+                const res = await api('POST', '/api/admin/recycle/toggle', { enabled: !recycleEnabled });
+                if (res.success) {
+                    recycleEnabled = res.enabled;
+                    updateRecycleStatusUI();
+                    toast(res.message, 'success');
+                } else {
+                    toast(res.message || '操作失败', 'error');
+                }
+            } catch (e) {
+                toast('网络错误', 'error');
+            }
+        }
+
+        function renderAdminRecycleTable() {
+            const tbody = document.getElementById('adminRecycleTableBody');
+            document.getElementById('adminRecycleItemCount').textContent = `共 ${recycleItems.length} 件回收商品`;
+
+            if (recycleItems.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">暂无回收商品</td></tr>';
+                return;
+            }
+            tbody.innerHTML = recycleItems.map(item => {
+                const limitText = item.dailyLimit > 0 ? item.dailyLimit + '/日' : '不限';
+                return `<tr>
+                    <td>${item.id}</td>
+                    <td>${esc(item.itemId)}</td>
+                    <td>${esc(item.displayName)}</td>
+                    <td style="color:var(--green);font-weight:600;">🪙 ${item.price}/个</td>
+                    <td>${esc(item.category)}</td>
+                    <td>${limitText}</td>
+                    <td class="actions">
+                        <button class="btn-sm btn-edit" onclick="adminRecycleEdit(${item.id})">✏️</button>
+                        <button class="btn-sm btn-del" onclick="adminRecycleDelete(${item.id})">🗑️</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function adminRecycleAdd() {
+            const itemId = document.getElementById('addRecycleItemId').value.trim();
+            const displayName = document.getElementById('addRecycleDisplayName').value.trim();
+            const price = parseInt(document.getElementById('addRecyclePrice').value);
+            if (!itemId) { toast('请输入物品 ID', 'error'); return; }
+            if (!displayName) { toast('请输入显示名称', 'error'); return; }
+            if (!price || price < 1) { toast('请输入有效价格', 'error'); return; }
+
+            const body = {
+                itemId,
+                displayName,
+                description: document.getElementById('addRecycleDescription').value.trim(),
+                price,
+                category: document.getElementById('addRecycleCategory').value.trim(),
+                dailyLimit: parseInt(document.getElementById('addRecycleDailyLimit').value) || 0
+            };
+
+            try {
+                const res = await api('POST', '/api/admin/recycle/add', body);
+                if (res.success) {
+                    toast('回收商品添加成功！', 'success');
+                    document.getElementById('addRecycleItemId').value = '';
+                    document.getElementById('addRecycleDisplayName').value = '';
+                    document.getElementById('addRecyclePrice').value = '10';
+                    document.getElementById('addRecycleCategory').value = '';
+                    document.getElementById('addRecycleDescription').value = '';
+                    document.getElementById('addRecycleDailyLimit').value = '0';
+                    await fetchRecycleShop();
+                    renderAdminRecycleTable();
+                } else {
+                    toast(res.message || '添加失败', 'error');
+                }
+            } catch (e) {
+                toast('网络错误', 'error');
+            }
+        }
+
+        function adminRecycleEdit(id) {
+            const item = recycleItems.find(i => i.id === id);
+            if (!item) return;
+            document.getElementById('editRecycleId').value = item.id;
+            document.getElementById('editRecycleItemId').value = item.itemId || '';
+            document.getElementById('editRecycleDisplayName').value = item.displayName;
+            document.getElementById('editRecycleDescription').value = item.description || '';
+            document.getElementById('editRecyclePrice').value = item.price;
+            document.getElementById('editRecycleCategory').value = item.category || '';
+            document.getElementById('editRecycleDailyLimit').value = item.dailyLimit || 0;
+            document.getElementById('recycleEditModal').classList.add('show');
+        }
+
+        function closeRecycleEditModal() {
+            document.getElementById('recycleEditModal').classList.remove('show');
+        }
+
+        async function adminRecycleSaveEdit() {
+            const id = parseInt(document.getElementById('editRecycleId').value);
+            const itemId = document.getElementById('editRecycleItemId').value.trim();
+            const displayName = document.getElementById('editRecycleDisplayName').value.trim();
+            const price = parseInt(document.getElementById('editRecyclePrice').value);
+            if (!itemId) { toast('物品 ID 不能为空', 'error'); return; }
+            if (!displayName) { toast('名称不能为空', 'error'); return; }
+            if (!price || price < 1) { toast('价格无效', 'error'); return; }
+
+            const body = {
+                id, itemId, displayName,
+                description: document.getElementById('editRecycleDescription').value.trim(),
+                price,
+                category: document.getElementById('editRecycleCategory').value.trim(),
+                dailyLimit: parseInt(document.getElementById('editRecycleDailyLimit').value) || 0
+            };
+
+            try {
+                const res = await api('POST', '/api/admin/recycle/update', body);
+                if (res.success) {
+                    toast('回收商品已更新', 'success');
+                    closeRecycleEditModal();
+                    await fetchRecycleShop();
+                    renderAdminRecycleTable();
+                } else {
+                    toast(res.message || '更新失败', 'error');
+                }
+            } catch (e) {
+                toast('网络错误', 'error');
+            }
+        }
+
+        function adminRecycleDelete(id) {
+            const item = recycleItems.find(i => i.id === id);
+            if (!item) return;
+            pendingDeleteId = id;
+            document.getElementById('deleteMessage').innerHTML =
+                `确定要删除回收商品 <strong>${esc(item.displayName)}</strong> (ID: ${id}) 吗？<br><br>` +
+                `<span style="color:var(--text-muted);font-size:0.85rem;">此操作不可撤销。</span>`;
+            document.getElementById('deleteModal').classList.add('show');
+            // Override confirm handler for recycle delete
+            document.getElementById('deleteModal').dataset.recycleDelete = 'true';
+        }
+
+        async function adminRecycleReload() {
+            try {
+                const res = await api('POST', '/api/admin/recycle/reload');
+                if (res.success) {
+                    toast(`回收配置已重新加载（${res.count} 件商品）`, 'success');
+                    await fetchRecycleShop();
+                    renderAdminRecycleTable();
+                } else {
+                    toast(res.message || '重载失败', 'error');
+                }
+            } catch (e) {
+                toast('网络错误', 'error');
+            }
+        }
+
+        // ==================== Original Admin Functions ====================
+
         function toggleAddFields() {
             const type = document.getElementById('addType').value;
             document.getElementById('addItemIdGroup').style.display = type === 'item' ? '' : 'none';
@@ -1408,22 +1913,31 @@
             document.getElementById('deleteMessage').innerHTML =
                 `确定要删除商品 <strong>${esc(item.displayName)}</strong> (ID: ${id}) 吗？<br><br>` +
                 `<span style="color:var(--text-muted);font-size:0.85rem;">此操作不可撤销。</span>`;
+            document.getElementById('deleteModal').dataset.recycleDelete = 'false';
             document.getElementById('deleteModal').classList.add('show');
         }
 
         function closeDeleteModal() {
             document.getElementById('deleteModal').classList.remove('show');
+            document.getElementById('deleteModal').dataset.recycleDelete = 'false';
             pendingDeleteId = null;
         }
 
         async function adminConfirmDelete() {
             if (pendingDeleteId == null) return;
+            const isRecycle = document.getElementById('deleteModal').dataset.recycleDelete === 'true';
             try {
-                const res = await api('POST', '/api/admin/shop/delete', { id: pendingDeleteId });
+                const url = isRecycle ? '/api/admin/recycle/delete' : '/api/admin/shop/delete';
+                const res = await api('POST', url, { id: pendingDeleteId });
                 if (res.success) {
-                    toast('商品已删除', 'success');
-                    await fetchShop();
-                    renderAdminTable();
+                    toast(isRecycle ? '回收商品已删除' : '商品已删除', 'success');
+                    if (isRecycle) {
+                        await fetchRecycleShop();
+                        renderAdminRecycleTable();
+                    } else {
+                        await fetchShop();
+                        renderAdminTable();
+                    }
                 } else {
                     toast(res.message || '删除失败', 'error');
                 }

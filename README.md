@@ -1,6 +1,6 @@
 # ⛏️ CheckIn — Minecraft 签到积分商店 Mod
 
-一个 **NeoForge 1.21.1** 服务端 Mod，为 Minecraft 服务器提供每日签到积分系统和内嵌 Web 积分商店。
+一个 **NeoForge 1.21.1** 服务端 Mod，为 Minecraft 服务器提供每日签到积分系统、内嵌 Web 积分商店和物品回收商店。
 
 ![Minecraft](https://img.shields.io/badge/Minecraft-1.21.1-green)
 ![NeoForge](https://img.shields.io/badge/NeoForge-21.1.219-orange)
@@ -37,15 +37,23 @@
 - 商品卡片实时显示剩余可购次数，达上限后自动禁用购买按钮
 - OP 管理后台支持设置和编辑限购数量
 
+### ♻️ 物品回收商店
+- 玩家可以将背包中的物品出售给系统，获得对应积分
+- 管理员可通过命令或管理后台开关回收商店
+- 每个回收商品可设置每日回收数量上限（`dailyLimit`，0 = 不限）
+- 回收页面实时显示今日已回收/限量，达上限后自动禁用
+- 回收记录写入兑换日志，统一审计
+
 ### ⚡ 双类型商品
 - **物品类型**：兑换后直接给予 Minecraft 物品到背包
 - **指令类型**：兑换后服务器执行预设指令，支持 `{player}` 占位符自动替换为玩家名
 
 ### ⚙️ OP 管理后台
 - OP 玩家登录网页后可见管理标签页
-- 支持商品的增删改查（CRUD）
-- 支持在线添加物品/指令类型商品
-- 支持重新加载配置文件
+- **侧边栏分页布局**：出售商店管理 / 回收商店管理 标签切换
+- 出售商店：商品增删改查、每日限购设置、重新加载配置
+- 回收商店：开关状态切换、回收商品增删改查、每日限量设置、重新加载配置
+- 移动端自动转为水平标签栏布局
 
 ## 📦 安装
 
@@ -69,6 +77,7 @@
 | `maxConsecutiveBonus` | 10 | 连续签到奖励上限 |
 | `webEnabled` | true | 是否启用 Web 服务器 |
 | `webPort` | 25580 | Web 服务器端口 |
+| `recycleShopEnabled` | true | 是否启用回收商店 |
 
 ### 商品配置（`checkin_shop.json`）
 
@@ -109,6 +118,37 @@
 ```
 </details>
 
+### 回收商品配置（`checkin_recycle_shop.json`）
+
+启动后自动生成包含 16 个默认回收商品（矿物、战利品分类）。也可通过 Web 管理后台编辑。
+
+<details>
+<summary>回收商品配置示例</summary>
+
+```json
+[
+  {
+    "id": 1,
+    "itemId": "minecraft:cobblestone",
+    "displayName": "圆石",
+    "description": "最基础的建筑材料",
+    "price": 1,
+    "category": "矿物",
+    "dailyLimit": 0
+  },
+  {
+    "id": 5,
+    "itemId": "minecraft:diamond",
+    "displayName": "钻石",
+    "description": "闪闪发光的钻石",
+    "price": 25,
+    "category": "矿物",
+    "dailyLimit": 64
+  }
+]
+```
+</details>
+
 ## 📝 游戏内命令
 
 | 命令 | 说明 | 权限 |
@@ -122,6 +162,8 @@
 | `/checkin remove <玩家> <数量>` | 扣除积分 | OP |
 | `/checkin transfer <玩家> <数量>` | 转账积分 | 所有人 |
 | `/checkin reset <玩家>` | 重置玩家数据 | OP |
+| `/checkin recycle enable` | 开启回收商店 | OP |
+| `/checkin recycle disable` | 关闭回收商店 | OP |
 
 ## 🌐 Web 商店使用
 
@@ -131,7 +173,7 @@
 4. 输入登录码登录
 5. 浏览商品并用积分兑换
 
-**OP 管理**：OP 玩家登录后会在导航栏看到 **⚙️ 管理** 标签页，可以直接在网页上对商品进行增删改查。
+**OP 管理**：OP 玩家登录后会在导航栏看到 **⚙️ 管理** 标签页，可以直接在网页上管理出售商店和回收商店（侧边栏切换）。
 
 ## 🔧 开发构建
 
@@ -161,8 +203,9 @@ cn.mlus.checkin
 ├── PlayerLoginHandler.java   # 登录事件处理
 ├── PointsManager.java        # 积分管理核心 API
 └── web/
-    ├── CheckinWebServer.java # 内嵌 HTTP 服务器
-    ├── RedemptionLog.java    # 兑换记录持久化
+    ├── CheckinWebServer.java  # 内嵌 HTTP 服务器（含回收 API）
+    ├── RecycleShopManager.java# 回收商店管理 & 回收逻辑
+    ├── RedemptionLog.java     # 兑换/回收记录持久化
     ├── ShopManager.java      # 商品管理 & 兑换逻辑
     └── WebAuthManager.java   # 登录码 & Session 鉴权
 ```

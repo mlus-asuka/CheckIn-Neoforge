@@ -21,5 +21,8 @@
   "checkin.transfer.insufficient": "§c[签到] §f积分不足，无法转账！",
   "checkin.web.code": "§a[签到] §f你的网页登录码：%1$s §7(点击复制)",
   "checkin.web.code_hint": "§7打开浏览器访问 http://服务器IP:§e%1$s §7输入登录码登录（有效期 5 分钟）",
-  "checkin.web.disabled": "§c[签到] §f网页服务器未启用。"
+  "checkin.web.disabled": "§c[签到] §f网页服务器未启用。",
+  "checkin.recycle.enabled": "§a[签到] §f回收商店已开启",
+  "checkin.recycle.disabled": "§a[签到] §f回收商店已关闭",
+  "checkin.recycle.unavailable": "§c[签到] §f回收商店不可用"
 }

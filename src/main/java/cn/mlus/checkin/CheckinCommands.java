@@ -13,6 +13,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.ChatFormatting;
 import net.minecraft.server.level.ServerPlayer;
 
+import cn.mlus.checkin.web.RecycleShopManager;
 import cn.mlus.checkin.web.WebAuthManager;
 
 import java.util.List;
@@ -38,9 +39,14 @@ import java.util.UUID;
 public class CheckinCommands {
 
     private static WebAuthManager webAuthManager;
+    private static RecycleShopManager recycleShopManager;
 
     public static void setWebAuthManager(WebAuthManager manager) {
         webAuthManager = manager;
+    }
+
+    public static void setRecycleShopManager(RecycleShopManager manager) {
+        recycleShopManager = manager;
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -123,6 +129,17 @@ public class CheckinCommands {
                         .then(Commands.argument("player", EntityArgument.player())
                                 .executes(ctx -> resetPlayer(ctx.getSource(),
                                         EntityArgument.getPlayer(ctx, "player")))
+                        )
+                )
+
+                // /checkin recycle enable|disable — 开关回收商店
+                .then(Commands.literal("recycle")
+                        .requires(src -> src.hasPermission(2))
+                        .then(Commands.literal("enable")
+                                .executes(ctx -> toggleRecycleShop(ctx.getSource(), true))
+                        )
+                        .then(Commands.literal("disable")
+                                .executes(ctx -> toggleRecycleShop(ctx.getSource(), false))
                         )
                 )
         );
@@ -234,6 +251,20 @@ public class CheckinCommands {
         PointsManager manager = PointsManager.of(source.getServer());
         manager.resetPlayer(target.getUUID());
         source.sendSuccess(() -> Component.translatable("checkin.admin.reset", target.getDisplayName()), false);
+        return 1;
+    }
+
+    private static int toggleRecycleShop(CommandSourceStack source, boolean enable) {
+        if (recycleShopManager == null) {
+            source.sendFailure(Component.translatable("checkin.recycle.unavailable"));
+            return 0;
+        }
+        recycleShopManager.setEnabled(enable);
+        if (enable) {
+            source.sendSuccess(() -> Component.translatable("checkin.recycle.enabled"), true);
+        } else {
+            source.sendSuccess(() -> Component.translatable("checkin.recycle.disabled"), true);
+        }
         return 1;
     }
 

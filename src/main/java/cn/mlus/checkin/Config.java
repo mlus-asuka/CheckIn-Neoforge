@@ -53,6 +53,10 @@ public class Config {
             .comment("Web server host address (use IP or domain name)")
             .define("webHost", "localhost");
 
+    private static final ModConfigSpec.BooleanValue RECYCLE_SHOP_ENABLED = BUILDER
+            .comment("Enable the recycle shop (players can sell items for points)")
+            .define("recycleShopEnabled", true);
+
     static final ModConfigSpec SPEC = BUILDER.build();
 
     public static int minPoints;
@@ -63,6 +67,7 @@ public class Config {
     public static boolean webEnabled;
     public static int webPort;
     public static String webHost;
+    public static boolean recycleShopEnabled;
 
     @SubscribeEvent
     static void onLoad(final ModConfigEvent event) {
@@ -74,5 +79,6 @@ public class Config {
         webEnabled = WEB_ENABLED.get();
         webPort = WEB_PORT.get();
         webHost = WEB_HOST.get();
+        recycleShopEnabled = RECYCLE_SHOP_ENABLED.get();
     }
 }

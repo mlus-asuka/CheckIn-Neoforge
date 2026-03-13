@@ -1220,6 +1220,52 @@
 
         function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
+        function getExternalItemIcon(itemId, kind) {
+            const raw = String(itemId || 'minecraft:barrier');
+            const parts = raw.includes(':') ? raw.split(':', 2) : ['minecraft', raw];
+            return `https://assets.mcasset.cloud/1.21.1/assets/${parts[0]}/textures/${kind}/${parts[1]}.png`;
+        }
+
+        function getItemNamespace(itemId) {
+            const raw = String(itemId || 'minecraft:barrier');
+            if (!raw.includes(':')) return 'minecraft';
+            return raw.split(':', 2)[0] || 'minecraft';
+        }
+
+        function handleItemIconError(img) {
+            const itemId = img.dataset.itemId || '';
+            const emoji = img.dataset.fallbackEmoji || '📦';
+            const stage = parseInt(img.dataset.fallbackStage || '0', 10);
+            const namespace = getItemNamespace(itemId);
+
+            if (!itemId) {
+                img.outerHTML = emoji;
+                return;
+            }
+
+            // Non-minecraft icons should not hit public CDN; keep local-only then emoji.
+            if (namespace !== 'minecraft') {
+                img.outerHTML = emoji;
+                return;
+            }
+
+            // Stage 0: local API failed -> try public item texture CDN.
+            if (stage === 0) {
+                img.dataset.fallbackStage = '1';
+                img.src = getExternalItemIcon(itemId, 'item');
+                return;
+            }
+
+            // Stage 1: item path failed -> try block texture path for block items.
+            if (stage === 1) {
+                img.dataset.fallbackStage = '2';
+                img.src = getExternalItemIcon(itemId, 'block');
+                return;
+            }
+
+            img.outerHTML = emoji;
+        }
+
         // ==================== Shop Rendering ====================
 
         function getItemIconHtml(item) {
@@ -1232,7 +1278,7 @@
             }
             // 物品商品：用 Minecraft 原版材质
             if (item.itemId) {
-                return `<img src="/api/item-icon/${encodeURIComponent(item.itemId)}" alt="${esc(item.displayName)}" onerror="this.outerHTML='📦'">`;
+                return `<img src="/api/item-icon/${encodeURIComponent(item.itemId)}" alt="${esc(item.displayName)}" data-item-id="${esc(item.itemId)}" data-fallback-stage="0" data-fallback-emoji="📦" onerror="handleItemIconError(this)">`;
             }
             return '📦';
         }
@@ -1505,7 +1551,7 @@
 
             grid.innerHTML = items.map((item, idx) => {
                 const iconHtml = item.itemId
-                    ? `<img src="/api/item-icon/${encodeURIComponent(item.itemId)}" alt="${esc(item.displayName)}" onerror="this.outerHTML='♻️'">`
+                    ? `<img src="/api/item-icon/${encodeURIComponent(item.itemId)}" alt="${esc(item.displayName)}" data-item-id="${esc(item.itemId)}" data-fallback-stage="0" data-fallback-emoji="♻️" onerror="handleItemIconError(this)">`
                     : '♻️';
                 const hasLimit = item.dailyLimit > 0;
                 const remaining = hasLimit ? item.dailyLimit - (item.todayRecycled || 0) : Infinity;
@@ -1613,6 +1659,21 @@
                     toast(res.message, 'success');
                 } else {
                     toast(res.message || '操作失败', 'error');
+                }
+            } catch (e) {
+                toast('网络错误', 'error');
+            }
+        }
+
+        async function adminRecycleReload() {
+            try {
+                const res = await api('POST', '/api/admin/recycle/reload');
+                if (res.success) {
+                    toast(`回收配置已重新加载（${res.count} 件商品）`, 'success');
+                    await fetchRecycleShop();
+                    renderAdminRecycleTable();
+                } else {
+                    toast(res.message || '重载失败', 'error');
                 }
             } catch (e) {
                 toast('网络错误', 'error');
